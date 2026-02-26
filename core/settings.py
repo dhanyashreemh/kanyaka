@@ -29,8 +29,8 @@ SECRET_KEY = 'django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "ivory-formulistic-groundedly.ngrok-free.dev"]
-
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "ivory-formulistic-groundedly.ngrok-free.dev", "onrender.com"]
+DEBUG = False
 
 # Application definition
 
