@@ -1,1 +1,1 @@
-web: gunicorn shopify_backend.wsgi
+web: gunicorn kanyaka.wsgi --bind 0.0.0.0:$PORT
