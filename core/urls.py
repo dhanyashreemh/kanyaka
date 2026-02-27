@@ -16,14 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.shortcuts import redirect
 from orders.views import shopify_webhook
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),  
-    path('webhook/order/', shopify_webhook),
-    path("", include("orders.urls")),
+    path("admin/", admin.site.urls),
+
+    path("api/", include("api.urls")),
+    path("webhook/order/", shopify_webhook),
+
+    # Staff auth
     path(
         "staff/login/",
         auth_views.LoginView.as_view(template_name="staff/login.html"),
@@ -34,5 +37,10 @@ urlpatterns = [
         auth_views.LogoutView.as_view(),
         name="logout",
     ),
-    path("", include("business.urls")),
+
+    # Business dashboard routes
+    path("staff/", include("business.urls")),
+
+    # Root → redirect to login
+    path("", lambda request: redirect("/staff/login/")),
 ]
