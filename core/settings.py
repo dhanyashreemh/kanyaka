@@ -1,7 +1,7 @@
-
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+
 
 load_dotenv()
 
@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     "ivory-formulistic-groundedly.ngrok-free.dev",
@@ -25,7 +25,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "kanyaka.onrender.com",
 ]
-DEBUG = False
+
 
 # Application definition
 
@@ -54,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
+    
     
 ]
 
