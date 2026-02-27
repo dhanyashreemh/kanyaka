@@ -169,5 +169,6 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ivory-formulistic-groundedly.ngrok-free.dev",
+    "https://kanyaka.onrender.com",
 ]
 
