@@ -7,14 +7,14 @@ from .models import GoldRate
 
 
 #Dashboard View
-@login_required
+
 def dashboard(request):
     rate = GoldRate.objects.order_by('-updated_at').first()
     return render(request, "staff/dashboard.html", {"rate": rate})
 
 
 #Update Rate View
-@login_required
+
 def update_rate(request):
     if request.method == "POST":
         rate_24k = request.POST["rate_24k"]
