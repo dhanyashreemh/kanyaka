@@ -165,6 +165,7 @@ LOGOUT_REDIRECT_URL = '/staff/login/'
 
 CORS_ALLOWED_ORIGINS = [
     "https://tewgnw-e7.myshopify.com",
+    "https://kanyaka.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
