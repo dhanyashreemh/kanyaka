@@ -1,7 +1,8 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Staff Dashboard</title>
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
@@ -9,6 +10,13 @@
 
 <div class="container">
 
+    <!-- Header -->
+    <div class="header">
+        <h1>🏢 Staff Dashboard</h1>
+        <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+    </div>
+
+    <!-- Current Gold Rate -->
     <div class="card">
         <h2>📊 Current Gold Rate</h2>
 
@@ -24,23 +32,39 @@
                 <p>₹{{ rate.rate_22k }}</p>
             </div>
         </div>
+
+        <div class="updated-time">
+            <small>Last Updated: {{ rate.updated_at }}</small>
+        </div>
+
         {% else %}
             <p>No rate updated yet.</p>
         {% endif %}
     </div>
 
+    <!-- Update Gold Rate -->
     <div class="card">
         <h2>🔄 Update Gold Rate</h2>
 
-        <form method="POST" action="/staff/update-rate/">
+        <form method="POST" action="{% url 'update_rate' %}">
             {% csrf_token %}
 
             <div class="form-group">
-                <input type="text" name="rate_24k" placeholder="Enter 24K Rate" required>
+                <input 
+                    type="number" 
+                    step="0.01" 
+                    name="rate_24k" 
+                    placeholder="Enter 24K Rate" 
+                    required>
             </div>
 
             <div class="form-group">
-                <input type="text" name="rate_22k" placeholder="Enter 22K Rate" required>
+                <input 
+                    type="number" 
+                    step="0.01" 
+                    name="rate_22k" 
+                    placeholder="Enter 22K Rate" 
+                    required>
             </div>
 
             <button type="submit">Update Rate</button>

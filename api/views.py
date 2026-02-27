@@ -1,30 +1,23 @@
-import requests
-import os
-from dotenv import load_dotenv
-
+from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from business.models import GoldRate
+import requests
+import os
 
-# load_dotenv()
 
-# @api_view(['GET'])
-# def test_api(request):
-#     SHOP = os.getenv("SHOPIFY_STORE")
-#     ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
+@api_view(['GET'])
+def gold_rate_api(request):
+    rate = GoldRate.objects.order_by('-updated_at').first()
 
-#     url = f"https://{SHOP}.myshopify.com/admin/api/2026-01/products.json"
+    if not rate:
+        return Response({"error": "No rate available"}, status=404)
 
-#     headers = {
-#         "X-Shopify-Access-Token": ACCESS_TOKEN,
-#         "Content-Type": "application/json"
-#     }
+    return Response({
+        "rate_24k": str(rate.rate_24k),
+        "rate_22k": str(rate.rate_22k),
+    })
 
-#     response = requests.get(url, headers=headers)
-
-#     return Response({
-#         "status_code": response.status_code,
-#         "response": response.json() if response.status_code == 200 else response.text
-#     })
 
 @api_view(['GET'])
 def test_api(request):
@@ -47,21 +40,7 @@ def test_api(request):
             "error": data
         })
 
-    cleaned_products = []
-
-    for product in data.get("products", []):
-        variant = product.get("variants", [{}])[0]
-        image = product.get("image")
-
-        cleaned_products.append({
-            "id": product.get("id"),
-            "title": product.get("title"),
-            "price": variant.get("price"),
-            "inventory": variant.get("inventory_quantity"),
-            "image": image.get("src") if image else None
-        })
-
     return Response({
         "status_code": 200,
-        "products": cleaned_products
+        "products": data.get("products", [])
     })
