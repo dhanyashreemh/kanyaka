@@ -33,6 +33,7 @@ ALLOWED_HOSTS = [
     "ivory-formulistic-groundedly.ngrok-free.dev",
     "127.0.0.1",
     "localhost",
+    "kanyaka.onrender.com",
 ]
 DEBUG = False
 
