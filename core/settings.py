@@ -90,17 +90,27 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv("DB_NAME"),
+#         'USER': os.getenv("DB_USER"),
+#         'PASSWORD': os.getenv("DB_PASSWORD"),
+#         'HOST': os.getenv("DB_HOST"),
+#         'PORT': os.getenv("DB_PORT"),
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("DB_NAME"),
-        'USER': os.getenv("DB_USER"),
-        'PASSWORD': os.getenv("DB_PASSWORD"),
-        'HOST': os.getenv("DB_HOST"),
-        'PORT': os.getenv("DB_PORT"),
+        'NAME': 'shopify_db_v0tr',
+        'USER': 'shopify_db_v0tr_user',
+        'PASSWORD': 'Vj8BriTak6bSaPmGtRVpX5Gb0RUY7FLu',
+        'HOST': 'dpg-d6g0sh9r0fns73ekc6eg-a.oregon-postgres.render.com',
+        'PORT': '5432',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
