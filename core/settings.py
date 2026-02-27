@@ -29,7 +29,11 @@ SECRET_KEY = 'django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "ivory-formulistic-groundedly.ngrok-free.dev",
+    "127.0.0.1",
+    "localhost",
+]
 DEBUG = False
 
 # Application definition
@@ -151,3 +155,8 @@ LOGOUT_REDIRECT_URL = '/staff/login/'
 CORS_ALLOWED_ORIGINS = [
     "https://tewgnw-e7.myshopify.com",
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://ivory-formulistic-groundedly.ngrok-free.dev",
+]
+

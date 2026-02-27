@@ -1,8 +1,5 @@
 from django.db import models
 
-# Create your models here.
-from django.db import models
-
 class GoldRate(models.Model):
     rate_24k = models.DecimalField(max_digits=10, decimal_places=2)
     rate_22k = models.DecimalField(max_digits=10, decimal_places=2)
