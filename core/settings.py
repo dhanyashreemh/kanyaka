@@ -163,6 +163,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://kanyaka.onrender.com",
 ]
 
+SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")
+SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
 
 
 
