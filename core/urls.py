@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import path, include
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
@@ -46,4 +47,6 @@ urlpatterns = [
 
     # Root redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
+
+    path("test-url/", lambda request: HttpResponse("WORKING")),
 ]
