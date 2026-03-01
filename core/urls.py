@@ -28,7 +28,7 @@ urlpatterns = [
     path("api/", include("api.urls")),
 
     # Webhooks
-    path("webhooks/", include("orders.urls")),
+    path("", include("orders.urls")),
 
     # Staff authentication
     path(
@@ -48,5 +48,4 @@ urlpatterns = [
     # Root redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
 
-    path("test-url/", lambda request: HttpResponse("WORKING")),
 ]
