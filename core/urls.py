@@ -20,6 +20,7 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
+from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -47,5 +48,7 @@ urlpatterns = [
 
     # Root redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
+
+    path("products/", include("products.urls")),
 
 ]
