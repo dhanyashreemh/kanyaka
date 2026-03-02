@@ -1,6 +1,9 @@
 from django.urls import path
-from .views import create_bulk_products
+
+from api import views
+from .views import bulk_status, create_bulk_products, upload_products
 
 urlpatterns = [
-    path("bulk-create/", create_bulk_products),
+    path("manual-upload/", views.manual_product_upload, name="manual_product_upload"),
+    path("bulk-upload/", views.bulk_product_upload, name="bulk_product_upload"),
 ]

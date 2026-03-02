@@ -5,16 +5,21 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .models import GoldRate
 
+#staff panel view
+from django.contrib.auth.decorators import login_required
+@login_required
+def staff_panel(request):
+    return render(request, "staff/staffpanel.html")
 
 #Dashboard View
-
+@login_required
 def dashboard(request):
     rate = GoldRate.objects.order_by('-updated_at').first()
     return render(request, "staff/dashboard.html", {"rate": rate})
 
 
 #Update Rate View
-
+@login_required
 def update_rate(request):
     if request.method == "POST":
         rate_24k = request.POST["rate_24k"]

@@ -1,0 +1,19 @@
+<h2>Bulk Product Upload</h2>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Upload CSV</button>
+</form>
+
+<p>CSV Format:</p>
+<pre>
+title,description,price
+Ring 1,Gold ring description,5000
+Chain 2,Gold chain description,10000
+</pre>
+
+<br>
+<a href="{% url 'staff_panel' %}">Back</a>
+|
+<a href="{% url 'logout' %}">Logout</a>

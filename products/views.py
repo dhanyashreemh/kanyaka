@@ -1,41 +1,109 @@
-#Create your views here.
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-from .shopify_graphql import create_products_sync
-from .shopify_graphql import bulk_create_products
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
+import requests
+import csv
+import io
+from django.shortcuts import render, redirect
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django import forms
 
-@csrf_exempt
-def create_bulk_products(request):
+
+# ----------------------------
+# FORMS
+# ----------------------------
+
+class ProductForm(forms.Form):
+    title = forms.CharField(max_length=255)
+    description = forms.CharField(widget=forms.Textarea)
+    price = forms.DecimalField(max_digits=10, decimal_places=2)
+
+
+class CSVUploadForm(forms.Form):
+    file = forms.FileField()
+
+
+# ----------------------------
+# SHOPIFY GRAPHQL FUNCTION
+# ----------------------------
+
+def create_product_shopify(title, description, price):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2026-01/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    mutation productCreate($input: ProductInput!) {
+      productCreate(input: $input) {
+        product {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    variables = {
+        "input": {
+            "title": title,
+            "descriptionHtml": description,
+            "variants": [
+                {"price": str(price)}
+            ]
+        }
+    }
+
+    requests.post(url, json={"query": query, "variables": variables}, headers=headers)
+
+
+# ----------------------------
+# MANUAL PRODUCT UPLOAD
+# ----------------------------
+
+@login_required
+def manual_product_upload(request):
     if request.method == "POST":
-        try:
-            body = json.loads(request.body)
-            products = body.get("products", [])
+        form = ProductForm(request.POST)
+        if form.is_valid():
+            create_product_shopify(
+                form.cleaned_data["title"],
+                form.cleaned_data["description"],
+                form.cleaned_data["price"],
+            )
+            return redirect("staff_panel")
+    else:
+        form = ProductForm()
 
-            result = create_products_sync(products)
-
-            return JsonResponse({
-                "status": "success",
-                "data": result
-            })
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-    return JsonResponse({"error": "Only POST allowed"}, status=405)
+    return render(request, "products/manual_upload.html", {"form": form})
 
 
-@api_view(["POST"])
-def create_bulk_products(request):
-    products = request.data.get("products")
+# ----------------------------
+# BULK CSV UPLOAD
+# ----------------------------
 
-    if not products:
-        return Response({"error": "No products provided"}, status=400)
+@login_required
+def bulk_product_upload(request):
+    if request.method == "POST":
+        form = CSVUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES["file"]
+            decoded_file = file.read().decode("utf-8")
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
 
-    result = bulk_create_products(products)
+            for row in reader:
+                create_product_shopify(
+                    row["title"],
+                    row["description"],
+                    row["price"],
+                )
 
-    return Response(result)
+            return redirect("staff_panel")
+    else:
+        form = CSVUploadForm()
+
+    return render(request, "products/bulk_upload.html", {"form": form})

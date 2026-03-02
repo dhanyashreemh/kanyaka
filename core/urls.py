@@ -42,13 +42,18 @@ urlpatterns = [
         auth_views.LogoutView.as_view(),
         name="logout",
     ),
+    
 
+    path("admin/", admin.site.urls),
     # Staff dashboard + business routes
-    path("staff/", include("business.urls")),
+    path("", include("business.urls")),
 
     # Root redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
 
+
+
     path("products/", include("products.urls")),
+
 
 ]

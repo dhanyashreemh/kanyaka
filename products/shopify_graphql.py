@@ -136,8 +136,48 @@ def create_products_bulk(products):
     return bulk_response.json()
 
 
+
+def find_variant_by_sku(sku):
+    query = f"""
+    {{
+      productVariants(first: 1, query: "sku:{sku}") {{
+        edges {{
+          node {{
+            id
+            product {{
+              id
+            }}
+          }}
+        }}
+      }}
+    }}
+    """
+
+    response = requests.post(GRAPHQL_URL, json={"query": query}, headers=HEADERS)
+    data = response.json()
+
+    edges = data["data"]["productVariants"]["edges"]
+
+    if edges:
+        return edges[0]["node"]
+
+    return None
+
 def bulk_create_products(products):
-    if len(products) < 50:
-        return create_products_sync(products)
-    else:
-        return create_products_bulk(products)
+
+    if len(products) > 500:
+        return create_products_bulk(products)  # bulk for large NEW data
+
+    results = []
+
+    for product in products:
+        existing = find_variant_by_sku(product["sku"])
+
+        if existing:
+            result = update_product(existing, product)
+        else:
+            result = create_product(product)
+
+        results.append(result)
+
+    return results
