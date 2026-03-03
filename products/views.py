@@ -5,11 +5,9 @@ from django.shortcuts import render, redirect
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django import forms
+from .models import Product
 
 
-# ----------------------------
-# FORMS
-# ----------------------------
 
 class ProductForm(forms.Form):
     title = forms.CharField(max_length=255)
@@ -136,3 +134,12 @@ def bulk_product_upload(request):
         form = CSVUploadForm()
 
     return render(request, "products/bulk_upload.html", {"form": form})
+
+
+
+
+
+@login_required
+def staff_products(request):
+    products = Product.objects.all().order_by("-id")
+    return render(request, "staff/products.html", {"products": products})
