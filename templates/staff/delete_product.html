@@ -2,10 +2,21 @@
 
 <p>Are you sure you want to delete "{{ product.title }}"?</p>
 
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Yes, Delete</button>
+</form>
+
+
+<form method="post" action="{% url 'staff_products' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">cancel</button> </form>|
+
+
+<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Go Back</button> </form>|
 <form method="post" action="{% url 'logout' %}" style="display:inline;">
     {% csrf_token %}
     <button type="submit">Logout</button>
 </form>
-
-<br>
-<a href="{% url 'staff_products' %}">Cancel</a>
