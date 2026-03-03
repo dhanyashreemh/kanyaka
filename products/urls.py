@@ -10,4 +10,5 @@ urlpatterns = [
     path("sync/", views.sync_shopify_products, name="sync_products"),
     path("staff/products/<int:pk>/edit/", views.edit_product, name="edit_product"),
     path("staff/products/<int:pk>/delete/", views.delete_product, name="delete_product"),   
+    path("bulk-status/", views.bulk_status_view, name="bulk_status"),
 ]

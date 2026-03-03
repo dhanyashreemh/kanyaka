@@ -135,28 +135,147 @@ def manual_product_upload(request):
 def bulk_product_upload(request):
     if request.method == "POST":
         form = CSVUploadForm(request.POST, request.FILES)
+
         if form.is_valid():
             file = request.FILES["file"]
+
+            # -----------------------------
+            # 1️⃣ Convert CSV → JSONL
+            # -----------------------------
             decoded_file = file.read().decode("utf-8")
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string)
 
+            temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl")
+
             for row in reader:
-                create_product_shopify(
-                    row["title"],
-                    row["description"],
-                    row["price"],
-                )
+                data = {
+                    "input": {
+                        "title": row["title"],
+                        "descriptionHtml": row["description"],                     
+                    }
+                }
+
+                temp.write((json.dumps(data) + "\n").encode("utf-8"))
+
+            temp.close()
+            jsonl_path = temp.name
+
+            # -----------------------------
+            # 2️⃣ Create Staged Upload
+            # -----------------------------
+            graphql_url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+            headers = {
+                "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+                "Content-Type": "application/json"
+            }
+
+            staged_query = """
+            mutation {
+              stagedUploadsCreate(input: {
+                resource: BULK_MUTATION_VARIABLES,
+                filename: "bulk_products.jsonl",
+                mimeType: "text/jsonl",
+                httpMethod: POST
+              }) {
+                stagedTargets {
+                  url
+                  resourceUrl
+                  parameters {
+                    name
+                    value
+                  }
+                }
+              }
+            }
+            """
+
+            staged_response = requests.post(
+                graphql_url,
+                json={"query": staged_query},
+                headers=headers
+            )
+
+            staged_data = staged_response.json()
+            print("STAGED RESPONSE:", staged_data)
+
+            target = staged_data["data"]["stagedUploadsCreate"]["stagedTargets"][0]
+
+            # -----------------------------
+            # 3️⃣ Upload JSONL to Google Storage
+            # -----------------------------
+            upload_url = target["url"]
+            params = {p["name"]: p["value"] for p in target["parameters"]}
+
+            with open(jsonl_path, "rb") as f:
+                files = {"file": f}
+                upload_response = requests.post(upload_url, data=params, files=files)
+
+            print("Upload status:", upload_response.status_code)
+
+            if upload_response.status_code not in [200, 201, 204]:
+                return render(request, "products/bulk_upload.html", {
+                    "form": form,
+                    "error": "File upload failed."
+                })
+
+            # -----------------------------
+            # 4️⃣ Extract CORRECT staged path (IMPORTANT FIX)
+            # -----------------------------
+            staged_path = None
+            for param in target["parameters"]:
+                if param["name"] == "key":
+                    staged_path = param["value"]
+                    break
+
+            print("Correct staged path:", staged_path)
+
+            # -----------------------------
+            # 5️⃣ Run Bulk Operation
+            # -----------------------------
+            bulk_mutation = f"""
+            mutation {{
+              bulkOperationRunMutation(
+                mutation: \"\"\"
+                mutation productCreate($input: ProductInput!) {{
+                  productCreate(input: $input) {{
+                    product {{
+                      id
+                    }}
+                    userErrors {{
+                      message
+                    }}
+                  }}
+                }}
+                \"\"\",
+                stagedUploadPath: "{staged_path}"
+              ) {{
+                bulkOperation {{
+                  id
+                  status
+                }}
+                userErrors {{
+                  message
+                }}
+              }}
+            }}
+            """
+
+            bulk_response = requests.post(
+                graphql_url,
+                json={"query": bulk_mutation},
+                headers=headers
+            )
+
+            print("🔥 BULK RUN RESPONSE:", bulk_response.json())
 
             return redirect("staff_panel")
+
     else:
         form = CSVUploadForm()
 
     return render(request, "products/bulk_upload.html", {"form": form})
-
-
-
-
 
 @login_required
 def staff_products(request):
@@ -287,6 +406,190 @@ def delete_product_shopify(product):
 
     requests.post(url, json={"query": mutation}, headers=headers)
 
+#Generate JSONL From CSV
+
+import json
+import tempfile
+
+def generate_jsonl_from_csv(file):
+    decoded_file = file.read().decode("utf-8")
+    io_string = io.StringIO(decoded_file)
+    reader = csv.DictReader(io_string)
+
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl")
+
+    for row in reader:
+        data = {
+            "input": {
+                "title": row["title"],
+                "descriptionHtml": row["description"],
+                "variants": [
+                    {
+                        "price": row["price"]
+                    }
+                ]
+            }
+        }
+        temp.write((json.dumps(data) + "\n").encode("utf-8"))
+
+    temp.close()
+    return temp.name
+
+#Create Staged Upload
+
+def create_staged_upload():
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    mutation {
+      stagedUploadsCreate(input: {
+        resource: BULK_MUTATION_VARIABLES,
+        filename: "bulk_products.jsonl",
+        mimeType: "text/jsonl",
+        httpMethod: POST
+      }) {
+        stagedTargets {
+          url
+          resourceUrl
+          parameters {
+            name
+            value
+          }
+        }
+      }
+    }
+    """
+
+    response = requests.post(url, json={"query": query}, headers=headers)
+    return response.json()["data"]["stagedUploadsCreate"]["stagedTargets"][0]
+
+#Upload JSONL to Shopify
+def upload_jsonl_to_shopify(target, file_path):
+    upload_url = target["url"]
+    params = {p["name"]: p["value"] for p in target["parameters"]}
+
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        response = requests.post(upload_url, data=params, files=files)
+
+    print("Upload status code:", response.status_code)
+    print("Upload response text:", response.text)
+
+    # Google storage returns 201
+    return response.status_code in [200, 201, 204]
+
+#Run Bulk Operation
+def run_bulk_operation(staged_path):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    mutation = f"""
+    mutation {{
+      bulkOperationRunMutation(
+        mutation: \"\"\"
+        mutation productCreate($input: ProductInput!) {{
+          productCreate(input: $input) {{
+            product {{
+              id
+              title
+            }}
+            userErrors {{
+              field
+              message
+            }}
+          }}
+        }}
+        \"\"\",
+        stagedUploadPath: "{staged_path}"
+      ) {{
+        bulkOperation {{
+          id
+          status
+        }}
+        userErrors {{
+          field
+          message
+        }}
+      }}
+    }}
+    """
+
+    response = requests.post(url, json={"query": mutation}, headers=headers)
+    data = response.json()
+
+    print("🔥 BULK RUN RESPONSE:", data)
+
+    return data
+
+#Check Bulk Status
+def check_bulk_status():
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    {
+      currentBulkOperation {
+        id
+        status
+        errorCode
+        objectCount
+        url
+      }
+    }
+    """
+
+    response = requests.post(url, json={"query": query}, headers=headers)
+
+    try:
+        data = response.json()
+
+        # Debug print
+        print("BULK STATUS RESPONSE:", data)
+
+        if "data" in data and data["data"]["currentBulkOperation"]:
+            return data["data"]["currentBulkOperation"]
+
+        return None
+
+    except Exception as e:
+        print("Bulk status error:", e)
+        return None
+    
+
+#Bulk Status View
+from django.http import JsonResponse
+
+@login_required
+def bulk_status_view(request):
+    status_data = check_bulk_status()
+
+    if not status_data:
+        return JsonResponse({
+            "status": "NO_ACTIVE_JOB",
+            "message": "No active bulk operation."
+        })
+
+    return JsonResponse(status_data)
+
+
+#Download Result When Completed
+def download_bulk_result(result_url):
+    response = requests.get(result_url)
+    with open("bulk_result.jsonl", "wb") as f:
+        f.write(response.content)
 
 
 
