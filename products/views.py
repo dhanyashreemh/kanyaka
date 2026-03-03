@@ -159,5 +159,28 @@ def staff_products(request):
     return render(request, "staff/products.html", {"products": products})
 
 
+def sync_shopify_products(request):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/products.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
+    }
+
+    response = requests.get(url, headers=headers)
+    data = response.json()
+
+    for product in data.get("products", []):
+        Product.objects.update_or_create(
+            shopify_product_id=product["id"],
+            defaults={
+                "title": product["title"],
+                "price": product["variants"][0]["price"],
+                "raw_data": product,
+            }
+        )
+
+    return redirect("staff_products")
+
+
 
 
