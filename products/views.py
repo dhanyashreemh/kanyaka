@@ -91,12 +91,17 @@ def create_product_shopify(title, description, price):
     requests.post(url, json={"query": update_query}, headers=headers)
 
     # 🔥 SAVE TO DATABASE HERE
+    variant_id = variant_data["id"]
+
     Product.objects.update_or_create(
         shopify_product_id=product_id,
         defaults={
             "title": title,
             "price": price,
-            "raw_data": product_data,
+            "raw_data": {
+                "product_id": product_id,
+                "variant_id": variant_id
+            },
         }
     )
 
@@ -221,8 +226,8 @@ def update_product_shopify(product):
         "Content-Type": "application/json"
     }
 
-    product_id = f"gid://shopify/Product/{product.shopify_product_id}"
-    variant_id = f"gid://shopify/ProductVariant/{product.raw_data['variants'][0]['id']}"
+    product_id = product.shopify_product_id
+    variant_id = product.raw_data["variant_id"]
 
     mutation = f"""
     mutation {{
@@ -230,9 +235,6 @@ def update_product_shopify(product):
         id: "{product_id}",
         title: "{product.title}"
       }}) {{
-        product {{
-          id
-        }}
         userErrors {{
           message
         }}
@@ -242,7 +244,6 @@ def update_product_shopify(product):
 
     requests.post(url, json={"query": mutation}, headers=headers)
 
-    # Update price separately
     price_mutation = f"""
     mutation {{
       productVariantsBulkUpdate(
@@ -261,7 +262,6 @@ def update_product_shopify(product):
 
     requests.post(url, json={"query": price_mutation}, headers=headers)
 
-
 def delete_product_shopify(product):
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
@@ -270,7 +270,7 @@ def delete_product_shopify(product):
         "Content-Type": "application/json"
     }
 
-    product_id = f"gid://shopify/Product/{product.shopify_product_id}"
+    product_id = product.shopify_product_id
 
     mutation = f"""
     mutation {{
