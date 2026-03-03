@@ -24,42 +24,71 @@ class CSVUploadForm(forms.Form):
 # ----------------------------
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
-
 def create_product_shopify(title, description, price):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2026-01/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
         "Content-Type": "application/json"
     }
 
-    query = """
-    mutation productCreate($input: ProductInput!) {
-      productCreate(input: $input) {
+    # 1️⃣ Create product (Shopify auto-creates default variant)
+    create_query = """
+    mutation {
+      productCreate(product: {
+        title: "%s"
+        descriptionHtml: "%s"
+      }) {
         product {
           id
+          variants(first: 1) {
+            edges {
+              node {
+                id
+              }
+            }
+          }
         }
         userErrors {
-          field
           message
         }
       }
     }
-    """
+    """ % (title, description)
 
-    variables = {
-        "input": {
-            "title": title,
-            "descriptionHtml": description,
-            "variants": [
-                {"price": str(price)}
-            ]
+    response = requests.post(url, json={"query": create_query}, headers=headers)
+    data = response.json()
+    print("PRODUCT CREATE RESPONSE:", data)
+
+    product_data = data["data"]["productCreate"]["product"]
+    product_id = product_data["id"]
+    variant_id = product_data["variants"]["edges"][0]["node"]["id"]
+
+    # 2️⃣ Update default variant price (NOW WITH productId)
+    update_query = """
+    mutation {
+      productVariantsBulkUpdate(
+        productId: "%s",
+        variants: [{
+          id: "%s",
+          price: "%s"
+        }]
+      ) {
+        productVariants {
+          id
+          price
         }
+        userErrors {
+          message
+        }
+      }
     }
+    """ % (product_id, variant_id, price)
 
-    requests.post(url, json={"query": query, "variables": variables}, headers=headers)
+    response2 = requests.post(url, json={"query": update_query}, headers=headers)
+    print("VARIANT UPDATE RESPONSE:", response2.json())
 
-
+    return response2.json()
 # ----------------------------
 # MANUAL PRODUCT UPLOAD
 # ----------------------------

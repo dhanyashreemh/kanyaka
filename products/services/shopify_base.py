@@ -1,7 +1,7 @@
 import requests
 from django.conf import settings
 
-GRAPHQL_URL = f"https://{settings.SHOPIFY_STORE}/admin/api/2026-01/graphql.json"
+GRAPHQL_URL = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
 HEADERS = {
     "Content-Type": "application/json",

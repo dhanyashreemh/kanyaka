@@ -1,35 +1,61 @@
 import json
+import hmac
+import hashlib
+import base64
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Order
-from .utils import verify_webhook
+
 
 @csrf_exempt
 def shopify_webhook(request):
-
-    print("Webhook hit")
+    print("\n===== 🔥 SHOPIFY WEBHOOK HIT 🔥 =====")
 
     if request.method != "POST":
+        print("Invalid method:", request.method)
         return HttpResponse(status=405)
 
-    if not verify_webhook(request):
-        print("HMAC verification failed")
+    # -------------------------------
+    # HMAC Verification (Debug Safe)
+    # -------------------------------
+    received_hmac = request.headers.get("X-Shopify-Hmac-Sha256")
+    print("Received HMAC:", received_hmac)
+
+    secret = settings.SHOPIFY_WEBHOOK_SECRET  # make sure this exists
+    print("Using Secret:", secret)
+
+    calculated_hmac = base64.b64encode(
+        hmac.new(
+            secret.encode("utf-8"),
+            request.body,
+            hashlib.sha256
+        ).digest()
+    ).decode()
+
+    print("Calculated HMAC:", calculated_hmac)
+
+    if not received_hmac or not hmac.compare_digest(received_hmac, calculated_hmac):
+        print("❌ HMAC verification failed")
         return HttpResponse(status=401)
 
+    print("✅ HMAC verified successfully")
+
+    # -------------------------------
+    # Process Order
+    # -------------------------------
     try:
         order_data = json.loads(request.body)
-
-        print("Formatted Order Data:")
-        print(json.dumps(order_data, indent=4))
+        print("Order Payload Received")
 
         order_id = order_data.get("id")
         if not order_id:
-            print("No ID found in payload")
+            print("❌ No Order ID in payload")
             return HttpResponse(status=400)
 
         print("Order ID:", order_id)
 
-        Order.objects.get_or_create(
+        order, created = Order.objects.get_or_create(
             shopify_order_id=order_id,
             defaults={
                 "email": order_data.get("email"),
@@ -38,21 +64,13 @@ def shopify_webhook(request):
             }
         )
 
-        print("Order saved successfully")
+        if created:
+            print("✅ Order created in DB")
+        else:
+            print("ℹ️ Order already exists")
+
         return HttpResponse(status=200)
-    
-
-
-        #creates order without checking the dupicates     
-        # order = Order.objects.create(
-        #   shopify_order_id=order_id,
-        #   email=order_data.get("email"),
-        #   total_price=order_data.get("total_price"),
-        #   raw_data=order_data
-        # )
-
-        # print("Created order with PK:", order.pk)
 
     except Exception as e:
-        print("ERROR:", str(e))
-        return HttpResponse(status=400)
+        print("🚨 ERROR saving order:", str(e))
+        return HttpResponse(status=500)

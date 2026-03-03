@@ -20,7 +20,6 @@ def find_variant_by_sku(sku):
 
     data = shopify_request(query)
 
-    print("SKU Search Response:", data)  # DEBUG LINE
 
     if not data.get("data"):
         return None
@@ -34,53 +33,79 @@ def find_variant_by_sku(sku):
 
 
 def create_product(product):
-    mutation = """
-    mutation productCreate($input: ProductInput!) {
-      productCreate(input: $input) {
-        product { id }
-        userErrors { message }
-      }
-    }
+
+    # Step 1: Create product
+    mutation = f"""
+    mutation {{
+      productCreate(product: {{
+        title: "{product['title']}",
+        status: ACTIVE
+      }}) {{
+        product {{
+          id
+          variants(first: 1) {{
+            edges {{
+              node {{
+                id
+                inventoryItem {{ id }}
+              }}
+            }}
+          }}
+        }}
+        userErrors {{ message }}
+      }}
+    }}
     """
 
-    variables = {
-        "input": {
-            "title": product["title"],
-            "status": "ACTIVE",
-            "productType": product.get("type", "General"),
-            "variants": [
-                {
-                    "sku": product["sku"],
-                    "price": str(product["price"]),
-                    "weight": float(product.get("weight", 0)),
-                    "weightUnit": "GRAMS"
-                }
-            ]
-        }
-    }
+    data = shopify_request(mutation)
 
-    return shopify_request(mutation, variables)
+    if data.get("errors"):
+        return data
 
+    product_data = data["data"]["productCreate"]["product"]
+    variant_node = product_data["variants"]["edges"][0]["node"]
+
+    product_id = product_data["id"]
+    variant_id = variant_node["id"]
+    inventory_item_id = variant_node["inventoryItem"]["id"]
+
+    # Step 2: Update variant price + sku
+    update_variant = f"""
+    mutation {{
+      productVariantsBulkUpdate(
+        productId: "{product_id}",
+        variants: [{{
+          id: "{variant_id}",
+          price: "{product['price']}",
+          sku: "{product['sku']}"
+        }}]
+      ) {{
+        userErrors {{ message }}
+      }}
+    }}
+    """
+
+    shopify_request(update_variant)
+
+    return data
 
 def update_product(existing_variant, product):
-    mutation = """
-    mutation productVariantUpdate($input: ProductVariantInput!) {
-      productVariantUpdate(input: $input) {
-        productVariant { id }
-        userErrors { message }
-      }
-    }
+
+    mutation = f"""
+    mutation {{
+      productVariantsBulkUpdate(
+        productId: "{existing_variant['product']['id']}",
+        variants: [{{
+          id: "{existing_variant['id']}",
+          price: "{product['price']}"
+        }}]
+      ) {{
+        userErrors {{ message }}
+      }}
+    }}
     """
 
-    variables = {
-        "input": {
-            "id": existing_variant["id"],
-            "price": str(product["price"]),
-        }
-    }
-
-    return shopify_request(mutation, variables)
-
+    return shopify_request(mutation)
 
 def sync_products(products):
     results = {"created": 0, "updated": 0, "errors": []}

@@ -12,12 +12,7 @@ def create_jsonl(products):
                 "input": {
                     "title": p["title"],
                     "productType": p.get("type", "General"),
-                    "variants": [
-                        {
-                            "sku": p["sku"],
-                            "price": str(p["price"]),
-                        }
-                    ]
+                    "status": "ACTIVE"
                 }
             }
             f.write(json.dumps(line) + "\n")
