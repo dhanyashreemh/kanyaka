@@ -1,9 +1,11 @@
-
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render, redirect
-
 from django.contrib.auth.decorators import login_required
 from .models import GoldRate
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from orders.models import Order
+from products.models import Product
 
 #staff panel view
 from django.contrib.auth.decorators import login_required
@@ -31,6 +33,18 @@ def update_rate(request):
         )
 
         return redirect("dashboard")
+
+
+@login_required
+def staff_orders(request):
+    orders = Order.objects.all().order_by("-id")
+    return render(request, "staff/orders.html", {"orders": orders})
+
+
+@login_required
+def staff_products(request):
+    products = Product.objects.all().order_by("-id")
+    return render(request, "staff/products.html", {"products": products})
     
 
     
