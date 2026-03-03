@@ -182,5 +182,111 @@ def sync_shopify_products(request):
     return redirect("staff_products")
 
 
+@login_required
+def edit_product(request, pk):
+    product = Product.objects.get(pk=pk)
+
+    if request.method == "POST":
+        product.title = request.POST.get("title")
+        product.price = request.POST.get("price")
+
+        update_product_shopify(product)  # 🔥 Update Shopify first
+        product.save()                   # Then save locally
+
+        return redirect("staff_products")
+
+    return render(request, "staff/edit_product.html", {"product": product})
+
+
+@login_required
+def delete_product(request, pk):
+    product = Product.objects.get(pk=pk)
+
+    if request.method == "POST":
+        delete_product_shopify(product)  # 🔥 Delete in Shopify first
+        product.delete()                 # Then delete locally
+
+        return redirect("staff_products")
+
+    return render(request, "staff/delete_product.html", {"product": product})
+
+
+import requests
+
+def update_product_shopify(product):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    product_id = f"gid://shopify/Product/{product.shopify_product_id}"
+    variant_id = f"gid://shopify/ProductVariant/{product.raw_data['variants'][0]['id']}"
+
+    mutation = f"""
+    mutation {{
+      productUpdate(input: {{
+        id: "{product_id}",
+        title: "{product.title}"
+      }}) {{
+        product {{
+          id
+        }}
+        userErrors {{
+          message
+        }}
+      }}
+    }}
+    """
+
+    requests.post(url, json={"query": mutation}, headers=headers)
+
+    # Update price separately
+    price_mutation = f"""
+    mutation {{
+      productVariantsBulkUpdate(
+        productId: "{product_id}",
+        variants: [{{
+          id: "{variant_id}",
+          price: "{product.price}"
+        }}]
+      ) {{
+        userErrors {{
+          message
+        }}
+      }}
+    }}
+    """
+
+    requests.post(url, json={"query": price_mutation}, headers=headers)
+
+
+def delete_product_shopify(product):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    product_id = f"gid://shopify/Product/{product.shopify_product_id}"
+
+    mutation = f"""
+    mutation {{
+      productDelete(input: {{
+        id: "{product_id}"
+      }}) {{
+        deletedProductId
+        userErrors {{
+          message
+        }}
+      }}
+    }}
+    """
+
+    requests.post(url, json={"query": mutation}, headers=headers)
+
+
 
 

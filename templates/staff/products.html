@@ -7,14 +7,23 @@
 
 <h2>Products</h2>
 
-<a href="/staff/orders/">View Orders</a>
+ |
+<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Go Back</button> </form>|
+<form method="post" action="{% url 'logout' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Logout</button>
+</form>
+
 <br><br>
 
-<table border="1">
+<table border="1" cellpadding="8">
     <tr>
         <th>ID</th>
         <th>Title</th>
         <th>Price</th>
+        <th>Actions</th>
     </tr>
 
     {% for product in products %}
@@ -22,10 +31,14 @@
         <td>{{ product.id }}</td>
         <td>{{ product.title }}</td>
         <td>{{ product.price }}</td>
+        <td>
+            <a href="{% url 'edit_product' product.id %}">Edit</a> |
+            <a href="{% url 'delete_product' product.id %}">Delete</a>
+        </td>
     </tr>
     {% empty %}
     <tr>
-        <td colspan="3">No products available</td>
+        <td colspan="4">No products available</td>
     </tr>
     {% endfor %}
 </table>

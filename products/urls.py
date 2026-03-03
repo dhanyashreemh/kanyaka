@@ -8,4 +8,6 @@ urlpatterns = [
     path("bulk-upload/", views.bulk_product_upload, name="bulk_product_upload"),
     path("staff/products/", views.staff_products, name="staff_products"),
     path("sync/", views.sync_shopify_products, name="sync_products"),
+    path("staff/products/<int:pk>/edit/", views.edit_product, name="edit_product"),
+    path("staff/products/<int:pk>/delete/", views.delete_product, name="delete_product"),   
 ]

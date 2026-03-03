@@ -13,7 +13,13 @@
     <!-- Header -->
     <div class="header">
         <h1>🏢 Staff Dashboard</h1>
-        <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+        <form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Go Back</button>
+        <form method="post" action="{% url 'logout' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="logout-btn">Logout</button>
+</form>
     </div>
 
     <!-- Current Gold Rate -->

@@ -7,10 +7,18 @@
 
 <h2>Orders</h2>
 
-<a href="/staff/products/">View Products</a>
+
+<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Go Back</button></form>
+<form method="post" action="{% url 'logout' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit">Logout</button>
+</form>
+
 <br><br>
 
-<table border="1">
+<table border="1" cellpadding="8">
     <tr>
         <th>Shopify ID</th>
         <th>Email</th>

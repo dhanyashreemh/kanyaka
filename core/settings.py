@@ -149,7 +149,7 @@ SHOPIFY_WEBHOOK_SECRET = os.getenv("SHOPIFY_WEBHOOK_SECRET")
 
 #for admins login
 LOGIN_URL = '/staff/login/'
-LOGIN_REDIRECT_URL = '/staff/dashboard/'
+LOGIN_REDIRECT_URL = "staff_panel"
 LOGOUT_REDIRECT_URL = '/staff/login/'
 
 # CORS_ALLOW_ALL_ORIGINS = True
