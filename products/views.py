@@ -9,6 +9,7 @@ from .models import Product
 
 
 
+
 class ProductForm(forms.Form):
     title = forms.CharField(max_length=255)
     description = forms.CharField(widget=forms.Textarea)
@@ -30,7 +31,6 @@ def create_product_shopify(title, description, price):
         "Content-Type": "application/json"
     }
 
-    # 1️⃣ Create product (Shopify auto-creates default variant)
     create_query = """
     mutation {
       productCreate(product: {
@@ -39,10 +39,12 @@ def create_product_shopify(title, description, price):
       }) {
         product {
           id
+          title
           variants(first: 1) {
             edges {
               node {
                 id
+                price
               }
             }
           }
@@ -56,13 +58,16 @@ def create_product_shopify(title, description, price):
 
     response = requests.post(url, json={"query": create_query}, headers=headers)
     data = response.json()
+
     print("PRODUCT CREATE RESPONSE:", data)
 
     product_data = data["data"]["productCreate"]["product"]
-    product_id = product_data["id"]
-    variant_id = product_data["variants"]["edges"][0]["node"]["id"]
 
-    # 2️⃣ Update default variant price (NOW WITH productId)
+    product_id = product_data["id"]
+    variant_data = product_data["variants"]["edges"][0]["node"]
+    variant_id = variant_data["id"]
+
+    # Update price
     update_query = """
     mutation {
       productVariantsBulkUpdate(
@@ -83,10 +88,19 @@ def create_product_shopify(title, description, price):
     }
     """ % (product_id, variant_id, price)
 
-    response2 = requests.post(url, json={"query": update_query}, headers=headers)
-    print("VARIANT UPDATE RESPONSE:", response2.json())
+    requests.post(url, json={"query": update_query}, headers=headers)
 
-    return response2.json()
+    # 🔥 SAVE TO DATABASE HERE
+    Product.objects.update_or_create(
+        shopify_product_id=product_id,
+        defaults={
+            "title": title,
+            "price": price,
+            "raw_data": product_data,
+        }
+    )
+
+    return product_data
 # ----------------------------
 # MANUAL PRODUCT UPLOAD
 # ----------------------------
@@ -143,3 +157,7 @@ def bulk_product_upload(request):
 def staff_products(request):
     products = Product.objects.all().order_by("-id")
     return render(request, "staff/products.html", {"products": products})
+
+
+
+
