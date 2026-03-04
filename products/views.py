@@ -294,9 +294,11 @@ def sync_shopify_products(request):
     data = response.json()
 
     for product in data.get("products", []):
-        shopify_product_id=f"gid://shopify/Product/{product['id']}",
+
+        shopify_product_id = f"gid://shopify/Product/{product['id']}"
+
         Product.objects.update_or_create(
-            #shopify_product_id=product["id"],
+            shopify_product_id=shopify_product_id,   # 🔥 IMPORTANT
             defaults={
                 "title": product["title"],
                 "price": product["variants"][0]["price"],
@@ -305,7 +307,6 @@ def sync_shopify_products(request):
         )
 
     return redirect("staff_products")
-
 
 @login_required
 def edit_product(request, pk):
