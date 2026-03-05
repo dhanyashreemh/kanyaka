@@ -1,10 +1,7 @@
 from django import forms
 
 class ProductForm(forms.Form):
-    title = forms.CharField(
-        max_length=255,
-        label="Product Title"
-    )
+    title = forms.CharField(max_length=255, label="Product Title")
 
     description = forms.CharField(
         widget=forms.Textarea,
@@ -23,7 +20,29 @@ class ProductForm(forms.Form):
         help_text="Example: gold, necklace, bridal"
     )
 
+    image = forms.ImageField(
+        required=False,
+        label="Upload Image"
+    )
+
     image_url = forms.URLField(
         required=False,
-        label="Image URL"
+        label="Or Image URL"
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        image = cleaned_data.get("image")
+        image_url = cleaned_data.get("image_url")
+
+        if not image and not image_url:
+            raise forms.ValidationError(
+                "Please upload an image or provide an image URL."
+            )
+
+        if image and image_url:
+            raise forms.ValidationError(
+                "Please use only one: upload image OR image URL."
+            )
+
+        return cleaned_data

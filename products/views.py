@@ -785,4 +785,28 @@ def shopify_product_webhook(request):
     return HttpResponse(status=405)
 
 
+from django.shortcuts import render
+from .forms import ProductForm
+
+def manual_product_upload(request):
+
+    if request.method == "POST":
+        form = ProductForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            title = form.cleaned_data["title"]
+            description = form.cleaned_data["description"]
+            price = form.cleaned_data["price"]
+            tags = form.cleaned_data["tags"]
+            image = form.cleaned_data.get("image")
+            image_url = form.cleaned_data.get("image_url")
+
+            print(title)
+
+    else:
+        form = ProductForm()
+
+    return render(request, "manual_upload.html", {"form": form})
+
+
 
