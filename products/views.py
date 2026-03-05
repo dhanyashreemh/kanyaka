@@ -88,7 +88,8 @@ def publish_product_to_online_store(product_id):
 
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
-def create_product_shopify(title, description, price):
+def create_product_shopify(title, description, price, tags=None, image_url=None):
+
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
     headers = {
@@ -96,14 +97,18 @@ def create_product_shopify(title, description, price):
         "Content-Type": "application/json"
     }
 
+    # Convert tags string → list
+    tag_list = []
+    if tags:
+        tag_list = [t.strip() for t in tags.split(",")]
+
+    # -------------------------
+    # Create Product
+    # -------------------------
+
     create_query = """
-    mutation {
-      productCreate(product: {
-        title: "%s"
-        descriptionHtml: "%s"
-        status: ACTIVE
-        tags: ["%s"]
-      }) {
+    mutation productCreate($input: ProductInput!) {
+      productCreate(product: $input) {
         product {
           id
           title
@@ -121,29 +126,39 @@ def create_product_shopify(title, description, price):
         }
       }
     }
-    """ % (title, description)
+    """
 
-    response = requests.post(url, json={"query": create_query}, headers=headers)
+    variables = {
+        "input": {
+            "title": title,
+            "descriptionHtml": description,
+            "status": "ACTIVE",
+            "tags": tag_list
+        }
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json={"query": create_query, "variables": variables}
+    )
+
     data = response.json()
-
     print("PRODUCT CREATE RESPONSE:", data)
 
     product_data = data["data"]["productCreate"]["product"]
     product_id = product_data["id"]
-    publish_product_to_online_store(product_id) ## Auto publish to Online Store
+
     variant_data = product_data["variants"]["edges"][0]["node"]
     variant_id = variant_data["id"]
 
-    # Update price
+    # -------------------------
+    # Update Price
+    # -------------------------
+
     update_query = """
-    mutation {
-      productVariantsBulkUpdate(
-        productId: "%s",
-        variants: [{
-          id: "%s",
-          price: "%s"
-        }]
-      ) {
+    mutation updateVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
         productVariants {
           id
           price
@@ -153,12 +168,69 @@ def create_product_shopify(title, description, price):
         }
       }
     }
-    """ % (product_id, variant_id, price)
+    """
 
-    requests.post(url, json={"query": update_query}, headers=headers)
+    update_variables = {
+        "productId": product_id,
+        "variants": [
+            {
+                "id": variant_id,
+                "price": str(price)
+            }
+        ]
+    }
 
-    # 🔥 SAVE TO DATABASE HERE
-    variant_id = variant_data["id"]
+    requests.post(
+        url,
+        headers=headers,
+        json={"query": update_query, "variables": update_variables}
+    )
+
+    # -------------------------
+    # Add Image (if provided)
+    # -------------------------
+
+    if image_url:
+
+        image_query = """
+        mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+          productCreateMedia(productId: $productId, media: $media) {
+            media {
+              mediaContentType
+              alt
+            }
+            mediaUserErrors {
+              message
+            }
+          }
+        }
+        """
+
+        image_variables = {
+            "productId": product_id,
+            "media": [
+                {
+                    "mediaContentType": "IMAGE",
+                    "originalSource": image_url
+                }
+            ]
+        }
+
+        requests.post(
+            url,
+            headers=headers,
+            json={"query": image_query, "variables": image_variables}
+        )
+
+    # -------------------------
+    # Publish to Store
+    # -------------------------
+
+    publish_product_to_online_store(product_id)
+
+    # -------------------------
+    # Save to Database
+    # -------------------------
 
     Product.objects.update_or_create(
         shopify_product_id=product_id,
@@ -167,8 +239,10 @@ def create_product_shopify(title, description, price):
             "price": price,
             "raw_data": {
                 "product_id": product_id,
-                "variant_id": variant_id
-            },
+                "variant_id": variant_id,
+                "tags": tag_list,
+                "image": image_url
+            }
         }
     )
 
@@ -186,6 +260,8 @@ def manual_product_upload(request):
                 form.cleaned_data["title"],
                 form.cleaned_data["description"],
                 form.cleaned_data["price"],
+                form.cleaned_data.get("tags"),
+                form.cleaned_data.get("image_url"),
             )
             return redirect("staff_panel")
     else:
