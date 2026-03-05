@@ -6,9 +6,8 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django import forms
 from .models import Product
-
-
-
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
 
 class ProductForm(forms.Form):
     title = forms.CharField(max_length=255)
@@ -756,6 +755,34 @@ def download_bulk_result(result_url):
     response = requests.get(result_url)
     with open("bulk_result.jsonl", "wb") as f:
         f.write(response.content)
+
+
+#Receives Shopify webhook↓Extracts product data !Updates Django DB
+@csrf_exempt
+def shopify_product_webhook(request):
+
+    if request.method == "POST":
+
+        data = json.loads(request.body)
+
+        shopify_product_id = f"gid://shopify/Product/{data['id']}"
+
+        price = 0
+        if data.get("variants"):
+            price = data["variants"][0]["price"]
+
+        Product.objects.update_or_create(
+            shopify_product_id=shopify_product_id,
+            defaults={
+                "title": data["title"],
+                "price": price,
+                "raw_data": data
+            }
+        )
+
+        return HttpResponse(status=200)
+
+    return HttpResponse(status=405)
 
 
 
