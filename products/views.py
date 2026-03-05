@@ -20,7 +20,72 @@ class CSVUploadForm(forms.Form):
     file = forms.FileField()
 
 
-# ----------------------------
+#Get Online Store Publication ID
+def get_online_store_publication_id():
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    {
+      publications(first: 10) {
+        edges {
+          node {
+            id
+            name
+          }
+        }
+      }
+    }
+    """
+
+    response = requests.post(url, json={"query": query}, headers=headers)
+    data = response.json()
+
+    for pub in data["data"]["publications"]["edges"]:
+        if pub["node"]["name"] == "Online Store":
+            return pub["node"]["id"]
+
+    return None
+
+
+
+#publishes the product to Online Store.
+def publish_product_to_online_store(product_id):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    publication_id = get_online_store_publication_id()
+
+    mutation = f"""
+    mutation {{
+      publishablePublish(
+        id: "{product_id}",
+        input: {{
+          publicationId: "{publication_id}"
+        }}
+      ) {{
+        publishable {{
+          id
+        }}
+        userErrors {{
+          message
+        }}
+      }}
+    }}
+    """
+
+    response = requests.post(url, json={"query": mutation}, headers=headers)
+
+    print("Publish response:", response.json())
+
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
 def create_product_shopify(title, description, price):
@@ -36,6 +101,8 @@ def create_product_shopify(title, description, price):
       productCreate(product: {
         title: "%s"
         descriptionHtml: "%s"
+        status: ACTIVE
+        tags: ["%s"]
       }) {
         product {
           id
@@ -62,8 +129,8 @@ def create_product_shopify(title, description, price):
     print("PRODUCT CREATE RESPONSE:", data)
 
     product_data = data["data"]["productCreate"]["product"]
-
     product_id = product_data["id"]
+    publish_product_to_online_store(product_id) ## Auto publish to Online Store
     variant_data = product_data["variants"]["edges"][0]["node"]
     variant_id = variant_data["id"]
 
@@ -152,7 +219,9 @@ def bulk_product_upload(request):
                 data = {
                     "input": {
                         "title": row["title"],
-                        "descriptionHtml": row["description"],                     
+                        "descriptionHtml": row["description"], 
+                        "status": "ACTIVE",
+                        "tags": [row["tag"]],                 
                     }
                 }
 
@@ -283,30 +352,49 @@ def staff_products(request):
     return render(request, "staff/products.html", {"products": products})
 
 
+
+
+
 def sync_shopify_products(request):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/products.json"
+
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/products.json?limit=250"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
     }
 
-    response = requests.get(url, headers=headers)
-    data = response.json()
+    while url:
+        response = requests.get(url, headers=headers)
+        data = response.json()
 
-    for product in data.get("products", []):
+        for product in data.get("products", []):
 
-        shopify_product_id = f"gid://shopify/Product/{product['id']}"
+            shopify_product_id = f"gid://shopify/Product/{product['id']}"
 
-        Product.objects.update_or_create(
-            shopify_product_id=shopify_product_id,   # 🔥 IMPORTANT
-            defaults={
-                "title": product["title"],
-                "price": product["variants"][0]["price"],
-                "raw_data": product,
-            }
-        )
+            price = 0
+            if product.get("variants"):
+                price = product["variants"][0]["price"]
+
+            Product.objects.update_or_create(
+                shopify_product_id=shopify_product_id,
+                defaults={
+                    "title": product["title"],
+                    "price": price,
+                    "raw_data": product,
+                }
+            )
+
+        # Shopify pagination
+        link_header = response.headers.get("Link")
+
+        if link_header and 'rel="next"' in link_header:
+            url = link_header.split(";")[0].strip("<> ")
+        else:
+            url = None
 
     return redirect("staff_products")
+
+
 
 @login_required
 def edit_product(request, pk):
