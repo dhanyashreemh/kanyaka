@@ -10,6 +10,13 @@
 
 <br>
 
+</form>>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Create Product</button>
+</form>
+<br>
+
 <form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
     {% csrf_token %}
     <button type="submit">Go Back</button>
@@ -18,9 +25,5 @@
 <form method="post" action="{% url 'logout' %}" style="display:inline;">
     {% csrf_token %}
     <button type="submit">Logout</button>
-</form>>
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Create Product</button>
-</form>
+
 
