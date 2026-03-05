@@ -284,9 +284,22 @@ def bulk_product_upload(request):
             # -----------------------------
             # 1️⃣ Convert CSV → JSONL
             # -----------------------------
-            decoded_file = file.read().decode("utf-8")
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
+            # -----------------------------
+
+            if file.name.endswith(".csv"):
+                decoded_file = file.read().decode("utf-8")
+                io_string = io.StringIO(decoded_file)
+                reader = list(csv.DictReader(io_string))
+
+            elif file.name.endswith(".xlsx"):
+                df = pd.read_excel(file)
+                reader = df.to_dict(orient="records")
+
+            else:
+                return render(request, "products/bulk_upload.html", {
+                    "form": form,
+                    "error": "Only CSV or Excel files are supported."
+                })
 
             temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl")
 
