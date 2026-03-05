@@ -17,6 +17,10 @@ class ProductForm(forms.Form):
         required=False
     )
 
+    image = forms.ImageField(   # 👈 ADD THIS
+        required=False
+    )
+
     image_url = forms.URLField(
         required=False
     )
