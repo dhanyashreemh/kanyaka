@@ -1,0 +1,104 @@
+body{
+background:#f4f6f9;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+/* page title */
+
+h2{
+font-weight:600;
+margin-bottom:25px;
+}
+
+/* cards */
+
+.card{
+border:none;
+border-radius:10px;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card-header{
+background:white;
+font-weight:600;
+font-size:16px;
+border-bottom:1px solid #eee;
+}
+
+/* form fields */
+
+label{
+font-weight:500;
+margin-bottom:5px;
+}
+
+.form-control{
+border-radius:6px;
+padding:8px;
+}
+
+/* buttons */
+
+.btn-success{
+background:#28a745;
+border:none;
+padding:10px 20px;
+font-weight:500;
+}
+
+.btn-primary{
+padding:8px 18px;
+}
+
+.btn-danger{
+padding:6px 12px;
+}
+
+/* drag drop image */
+
+.drop-zone{
+border:2px dashed #ccc;
+padding:40px;
+text-align:center;
+cursor:pointer;
+border-radius:10px;
+background:#fafafa;
+transition:0.2s;
+}
+
+.drop-zone:hover{
+background:#f0f6ff;
+border-color:#0d6efd;
+}
+
+.drop-zone.dragover{
+background:#eef5ff;
+border-color:#0d6efd;
+}
+
+/* image preview */
+
+.preview img{
+width:120px;
+height:120px;
+object-fit:cover;
+margin:6px;
+border-radius:6px;
+border:1px solid #ddd;
+}
+
+/* table */
+
+.table{
+margin-top:10px;
+}
+
+.table th{
+background:#f9f9f9;
+}
+
+/* footer buttons */
+
+.footer-buttons{
+margin-top:20px;
+}

@@ -1,20 +1,403 @@
-<h2>Manual Product Upload</h2>
+<!DOCTYPE html>
+<html>
+<head>
+
+{% load static %}
+<title>Manual Product Upload</title>
+<link rel="stylesheet" href="{% static 'css/manual_upload.css' %}">
+
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+.drop-zone{
+border:2px dashed #ccc;
+padding:40px;
+text-align:center;
+cursor:pointer;
+border-radius:10px;
+background:#fafafa;
+}
+
+.drop-zone.dragover{
+background:#eef5ff;
+border-color:#0d6efd;
+}
+
+.preview img{
+width:120px;
+height:120px;
+object-fit:cover;
+margin:5px;
+border-radius:6px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container mt-5">
+
+<h2 class="mb-4">Manual Product Upload</h2>
 
 <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
 
-    <button type="submit">Create Product</button>
+{% csrf_token %}
+
+<!-- PRODUCT INFO -->
+
+<div class="card mb-4">
+<div class="card-header">Product Info</div>
+
+<div class="card-body">
+
+<label>Title</label>
+{{ form.title }}
+
+<br><br>
+
+<label>Description</label>
+{{ form.description }}
+
+</div>
+</div>
+
+
+<!-- JEWELRY DETAILS -->
+
+<div class="card mb-4">
+<div class="card-header">Jewelry Details</div>
+
+<div class="card-body">
+
+<div class="mb-3">
+<label class="form-label">Jewelry Type</label>
+{{ form.jewelry_type }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Metal Type</label>
+{{ form.metal_type }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Purity</label>
+{{ form.purity }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Weight (grams)</label>
+{{ form.weight }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Stone Type</label>
+{{ form.stone_type }}
+</div>
+
+</div>
+</div>
+
+<!-- ORGANIZATION -->
+
+<div class="card mb-4">
+<div class="card-header">Product Organization</div>
+
+<div class="card-body">
+
+<div class="mb-3">
+<label class="form-label">Collection</label>
+{{ form.collection }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Occasion</label>
+{{ form.occasion }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Tags</label>
+{{ form.tags }}
+</div>
+
+</div>
+</div>
+
+
+<!-- PRICING -->
+
+<div class="card mb-4">
+<div class="card-header">Pricing</div>
+
+<div class="card-body">
+
+<div class="mb-3">
+<label class="form-label">Price</label>
+{{ form.price }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Compare At Price</label>
+{{ form.compare_price }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Unit Price</label>
+{{ form.unit_price }}
+</div>
+
+<div class="form-check mb-3">
+{{ form.charge_tax }}
+<label class="form-check-label">Charge Tax</label>
+</div>
+
+</div>
+</div>
+
+
+<!-- INVENTORY -->
+
+<div class="card mb-4">
+<div class="card-header">Inventory</div>
+
+<div class="card-body">
+
+<div class="mb-3">
+<label class="form-label">Cost Per Item</label>
+{{ form.cost_per_item }}
+</div>
+
+<div class="form-check mb-3">
+{{ form.inventory_tracked }}
+<label class="form-check-label">Track Inventory</label>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Quantity</label>
+{{ form.quantity }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">SKU</label>
+{{ form.sku }}
+</div>
+
+<div class="mb-3">
+<label class="form-label">Barcode</label>
+{{ form.barcode }}
+</div>
+
+<div class="form-check mb-3">
+{{ form.sell_out_of_stock }}
+<label class="form-check-label">Sell When Out Of Stock</label>
+</div>
+
+</div>
+</div>
+<!-- PRODUCT MEDIA -->
+
+<div class="card mb-4">
+
+<div class="card-header">
+Product Images
+</div>
+
+<div class="card-body">
+
+<div class="drop-zone" id="dropZone">
+Drag & Drop Images Here or Click to Upload
+</div>
+
+<input
+type="file"
+name="images"
+id="imageInput"
+multiple
+accept="image/*"
+hidden
+>
+
+<div id="preview" class="preview mt-3"></div>
+
+</div>
+
+</div>
+
+
+<!-- VARIANTS -->
+
+<div class="card mb-4">
+
+<div class="card-header">
+Product Variants
+</div>
+
+<div class="card-body">
+
+<div class="row">
+
+<div class="col">
+<input class="form-control" id="variantName" placeholder="Variant Name (Size, Color)">
+</div>
+
+<div class="col">
+<input class="form-control" id="variantValues" placeholder="Values (S,M,L)">
+</div>
+
+<div class="col">
+<button type="button" class="btn btn-primary" onclick="addVariant()">
+Add Variant
+</button>
+</div>
+
+</div>
+
+<br>
+
+<table class="table" id="variantTable">
+
+<thead>
+<tr>
+<th>Variant</th>
+<th>Values</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<input type="hidden" name="variants_data" id="variants_data">
+
+
+<button class="btn btn-success">
+Create Product
+</button>
+
 </form>
 
 <br>
 
 <form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Go Back</button>
+{% csrf_token %}
+<button class="btn btn-secondary">Go Back</button>
 </form>
 
 <form method="post" action="{% url 'logout' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
+{% csrf_token %}
+<button class="btn btn-danger">Logout</button>
 </form>
+
+</div>
+
+
+<script>
+
+/* IMAGE DRAG DROP */
+
+const dropZone = document.getElementById("dropZone")
+const input = document.getElementById("imageInput")
+const preview = document.getElementById("preview")
+
+dropZone.onclick = () => input.click()
+
+input.addEventListener("change", handleFiles)
+
+dropZone.addEventListener("dragover", e=>{
+e.preventDefault()
+dropZone.classList.add("dragover")
+})
+
+dropZone.addEventListener("dragleave", ()=>{
+dropZone.classList.remove("dragover")
+})
+
+dropZone.addEventListener("drop", e=>{
+
+e.preventDefault()
+
+dropZone.classList.remove("dragover")
+
+input.files = e.dataTransfer.files
+
+handleFiles()
+
+})
+
+function handleFiles(){
+
+preview.innerHTML=""
+
+for(const file of input.files){
+
+const reader = new FileReader()
+
+reader.onload = e=>{
+
+const img=document.createElement("img")
+
+img.src=e.target.result
+
+preview.appendChild(img)
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+}
+
+
+/* VARIANT BUILDER */
+
+let variants=[]
+
+function addVariant(){
+
+let name=document.getElementById("variantName").value
+let values=document.getElementById("variantValues").value
+
+if(!name || !values) return
+
+variants.push({
+name:name,
+values:values.split(",")
+})
+
+let table=document.querySelector("#variantTable tbody")
+
+let row=document.createElement("tr")
+
+row.innerHTML=`
+<td>${name}</td>
+<td>${values}</td>
+<td>
+<button class="btn btn-danger btn-sm"
+onclick="this.parentElement.parentElement.remove()">
+Remove
+</button>
+</td>
+`
+
+table.appendChild(row)
+
+document.getElementById("variants_data").value=JSON.stringify(variants)
+
+document.getElementById("variantName").value=""
+document.getElementById("variantValues").value=""
+
+}
+
+</script>
+
+</body>
+</html>

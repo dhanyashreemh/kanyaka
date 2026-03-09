@@ -15,5 +15,11 @@ urlpatterns = [
     "webhooks/shopify/product-create/",
     views.shopify_product_webhook,
     name="shopify_product_webhook"
-)
+    ),
+    path(
+        "manual-upload/",
+        views.manual_product_upload,
+        name="manual_upload"
+    ),
+
 ]

@@ -8,6 +8,9 @@ from django import forms
 from .models import Product
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
+import pandas as pd
+from .forms import ProductForm
+
 
 class ProductForm(forms.Form):
     title = forms.CharField(max_length=255)
@@ -249,26 +252,39 @@ def create_product_shopify(title, description, price, tags=None, image_url=None)
 # ----------------------------
 # MANUAL PRODUCT UPLOAD
 # ----------------------------
-
 @login_required
 def manual_product_upload(request):
+
     if request.method == "POST":
-        form = ProductForm(request.POST)
+
+        form = ProductForm(request.POST, request.FILES)
+
         if form.is_valid():
+
+            data = form.cleaned_data
+
+            images = request.FILES.getlist("images")
+
+            variants_data = request.POST.get("variants_data")
+
+            variants = json.loads(variants_data) if variants_data else []
+
             create_product_shopify(
-                form.cleaned_data["title"],
-                form.cleaned_data["description"],
-                form.cleaned_data["price"],
-                form.cleaned_data.get("tags"),
-                form.cleaned_data.get("image_url"),
+                data,
+                images,
+                variants
             )
+
             return redirect("staff_panel")
+
     else:
         form = ProductForm()
 
-    return render(request, "products/manual_upload.html", {"form": form})
-
-
+    return render(
+        request,
+        "products/manual_upload.html",
+        {"form": form}
+    )
 # ----------------------------
 # BULK CSV UPLOAD
 # ----------------------------
