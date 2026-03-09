@@ -577,7 +577,6 @@ def update_product_shopify(product):
       productVariantsBulkUpdate(
         productId: "{product_id}",
         variants: [{{
-          id: "{variant_id}",
           price: "{product.price}"
         }}]
       ) {{

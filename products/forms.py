@@ -2,35 +2,110 @@ from django import forms
 
 class ProductForm(forms.Form):
 
-    title = forms.CharField(max_length=255)
-    description = forms.CharField(widget=forms.Textarea)
+    title = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    jewelry_type = forms.CharField(required=False)
-    metal_type = forms.CharField(required=False)
-    purity = forms.CharField(required=False)
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={"class":"form-control"})
+    )
 
-    weight = forms.DecimalField(max_digits=8, decimal_places=2, required=False)
+    jewelry_type = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    stone_type = forms.CharField(required=False)
+    metal_type = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    collection = forms.CharField(required=False)
-    occasion = forms.CharField(required=False)
-    tags = forms.CharField(required=False)
+    purity = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    price = forms.DecimalField(max_digits=10, decimal_places=2)
+    weight = forms.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
 
-    compare_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
-    unit_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    stone_type = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    charge_tax = forms.BooleanField(required=False, widget=forms.CheckboxInput)
+    collection = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    cost_per_item = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    occasion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    inventory_tracked = forms.BooleanField(required=False, widget=forms.CheckboxInput)
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
 
-    quantity = forms.IntegerField(required=False)
+    price = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
 
-    sku = forms.CharField(required=False)
-    barcode = forms.CharField(required=False)
+    compare_price = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
 
-    sell_out_of_stock = forms.BooleanField(required=False, widget=forms.CheckboxInput)
+    unit_price = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
+
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
+
+    quantity = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={"class":"form-control"})
+    )
+
+    sku = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
+
+    barcode = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class":"form-control"})
+    )
+
+    charge_tax = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class":"form-check-input"})
+    )
+
+    inventory_tracked = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class":"form-check-input"})
+    )
+
+    sell_out_of_stock = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class":"form-check-input"})
+    )
