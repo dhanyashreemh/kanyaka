@@ -1,23 +1,26 @@
 <h2>Staff Panel</h2>
 
 <hr>
+{% load static %}
 
-<a href="{% url 'dashboard' %}">Update Gold Rate</a>
+<link rel="stylesheet" href="{% static 'css/staffpanel.css' %}">
+
+<a class="btn" href="{% url 'dashboard' %}">Update Gold Rate</a>
 <br><br>
 
-<a href="{% url 'manual_product_upload' %}">Upload Product (Manual)</a>
+<a class="btn" href="{% url 'manual_product_upload' %}">Upload Product (Manual)</a>
 <br><br>
 
-<a href="{% url 'bulk_product_upload' %}">Upload Products (CSV)</a>
+<a class="btn" href="{% url 'bulk_product_upload' %}">Upload Products (CSV)</a>
 <br><br>
 
-<a href="{% url 'staff_orders' %}">View Orders</a>
+<a class="btn" href="{% url 'staff_orders' %}">View Orders</a>
 <br><br>
 
-<a href="{% url 'staff_products' %}">View Products</a>
+<a class="btn" href="{% url 'staff_products' %}">View Products</a>
 <br><br>
 
 <form method="post" action="{% url 'logout' %}" style="display:inline;">
     {% csrf_token %}
-    <button type="submit">Logout</button>
+    <button class="btn logout-btn" type="submit">Logout</button>
 </form>
