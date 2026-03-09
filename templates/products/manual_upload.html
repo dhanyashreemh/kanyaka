@@ -150,7 +150,7 @@ border-radius:6px;
 </div>
 
 <div class="form-check mb-3">
-{{ form.charge_tax.as_widget(attrs={'class':'form-check-input'}) }}
+{{ form.charge_tax }}
 <label class="form-check-label">Charge Tax</label>
 </div>
 
@@ -165,38 +165,37 @@ border-radius:6px;
 
 <div class="card-body">
 
-<div class="mb-3">
-<label class="form-label">Cost Per Item</label>
+<label>Cost Per Item</label>
 {{ form.cost_per_item }}
-</div>
 
-<div class="form-check mb-3">
-{{ form.inventory_tracked.as_widget(attrs={'class':'form-check-input'}) }}
-<label class="form-check-label">Track Inventory</label>
-</div>
+<br><br>
 
-<div class="mb-3">
-<label class="form-label">Quantity</label>
+<label>Track Inventory</label>
+{{ form.inventory_tracked }}
+
+<br><br>
+
+<label>Quantity</label>
 {{ form.quantity }}
-</div>
 
-<div class="mb-3">
-<label class="form-label">SKU</label>
+<br><br>
+
+<label>SKU</label>
 {{ form.sku }}
-</div>
 
-<div class="mb-3">
-<label class="form-label">Barcode</label>
+<br><br>
+
+<label>Barcode</label>
 {{ form.barcode }}
+
+<br><br>
+
+<label>Sell When Out Of Stock</label>
+{{ form.sell_out_of_stock }}
+
+</div>
 </div>
 
-<div class="form-check mb-3">
-{{ form.sell_out_of_stock.as_widget(attrs={'class':'form-check-input'}) }}
-<label class="form-check-label">Sell When Out Of Stock</label>
-</div>
-
-</div>
-</div>
 
 <!-- PRODUCT MEDIA -->
 
