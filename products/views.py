@@ -555,7 +555,7 @@ def update_product_shopify(product):
         "Content-Type": "application/json"
     }
 
-
+    product_id = product.shopify_product_id
 
     mutation = f"""
     mutation {{
