@@ -90,7 +90,7 @@ def publish_product_to_online_store(product_id):
 
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
-def create_product_shopify(title, description, price, tags=None, image_url=None):
+def create_product_shopify(data, images, variants):
 
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
@@ -99,16 +99,11 @@ def create_product_shopify(title, description, price, tags=None, image_url=None)
         "Content-Type": "application/json"
     }
 
-    # Convert tags string → list
-    tag_list = []
-    if tags:
-        tag_list = [t.strip() for t in tags.split(",")]
+    tags = []
+    if data.get("tags"):
+        tags = [t.strip() for t in data["tags"].split(",")]
 
-    # -------------------------
-    # Create Product
-    # -------------------------
-
-    create_query = """
+    query = """
     mutation productCreate($input: ProductInput!) {
       productCreate(product: $input) {
         product {
@@ -132,52 +127,46 @@ def create_product_shopify(title, description, price, tags=None, image_url=None)
 
     variables = {
         "input": {
-            "title": title,
-            "descriptionHtml": description,
-            "status": "ACTIVE",
-            "tags": tag_list
+            "title": data["title"],
+            "descriptionHtml": data["description"],
+            "tags": tags,
+            "status": "ACTIVE"
         }
     }
 
     response = requests.post(
         url,
         headers=headers,
-        json={"query": create_query, "variables": variables}
+        json={"query": query, "variables": variables}
     )
 
-    data = response.json()
-    print("PRODUCT CREATE RESPONSE:", data)
+    result = response.json()
 
-    product_data = data["data"]["productCreate"]["product"]
-    product_id = product_data["id"]
+    print("Shopify response:", result)
 
-    variant_data = product_data["variants"]["edges"][0]["node"]
-    variant_id = variant_data["id"]
+    product = result["data"]["productCreate"]["product"]
 
-    # -------------------------
-    # Update Price
-    # -------------------------
+    product_id = product["id"]
+    variant_id = product["variants"]["edges"][0]["node"]["id"]
 
-    update_query = """
+    # Update price
+    price_mutation = """
     mutation updateVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
       productVariantsBulkUpdate(productId: $productId, variants: $variants) {
         productVariants {
           id
           price
         }
-        userErrors {
-          message
-        }
       }
     }
     """
 
-    update_variables = {
+    price_variables = {
         "productId": product_id,
         "variants": [
             {
                 "id": variant_id,
-                "price": str(price)
+                "price": str(data["price"])
             }
         ]
     }
@@ -185,83 +174,24 @@ def create_product_shopify(title, description, price, tags=None, image_url=None)
     requests.post(
         url,
         headers=headers,
-        json={"query": update_query, "variables": update_variables}
+        json={"query": price_mutation, "variables": price_variables}
     )
 
-    # -------------------------
-    # Add Image (if provided)
-    # -------------------------
-
-    if image_url:
-
-        image_query = """
-        mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
-          productCreateMedia(productId: $productId, media: $media) {
-            media {
-              mediaContentType
-              alt
-            }
-            mediaUserErrors {
-              message
-            }
-          }
-        }
-        """
-
-        image_variables = {
-            "productId": product_id,
-            "media": [
-                {
-                    "mediaContentType": "IMAGE",
-                    "originalSource": image_url
-                }
-            ]
-        }
-
-        requests.post(
-            url,
-            headers=headers,
-            json={"query": image_query, "variables": image_variables}
-        )
-
-    # -------------------------
-    # Publish to Store
-    # -------------------------
-
-    publish_product_to_online_store(product_id)
-
-    # -------------------------
-    # Save to Database
-    # -------------------------
-
+    # Save to DB
     Product.objects.update_or_create(
         shopify_product_id=product_id,
         defaults={
-            "title": title,
-            "price": price,
-            "raw_data": {
-                "product_id": product_id,
-                "variant_id": variant_id,
-                "tags": tag_list,
-                "image": image_url
-            }
+            "title": data["title"],
+            "price": data["price"],
+            "sku": data.get("sku"),
+            "quantity": data.get("quantity"),
+            "metal_type": data.get("metal_type"),
+            "purity": data.get("purity"),
+            "stone_type": data.get("stone_type"),
+            "weight": data.get("weight"),
+            "collection": data.get("collection"),
         }
     )
-
-    return product_data
-# ----------------------------
-# MANUAL PRODUCT UPLOAD
-# ----------------------------
-# 
-
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from .forms import ProductForm
-
-@login_required
-def manual_product_upload(request):
-    form = ProductForm()
-    return render(request, "products/manual_upload.html", {"form": form})
 # ----------------------------
 # BULK CSV UPLOAD
 # ----------------------------
@@ -274,11 +204,8 @@ def bulk_product_upload(request):
         if form.is_valid():
             file = request.FILES["file"]
 
-            # -----------------------------
             # 1️⃣ Convert CSV → JSONL
-            # -----------------------------
-            # -----------------------------
-
+          
             if file.name.endswith(".csv"):
                 decoded_file = file.read().decode("utf-8")
                 io_string = io.StringIO(decoded_file)
@@ -298,13 +225,33 @@ def bulk_product_upload(request):
 
             for row in reader:
                 data = {
-                    "input": {
-                        "title": row["title"],
-                        "descriptionHtml": row["description"], 
-                        "status": "ACTIVE",
-                        "tags": [row["tag"]],                 
-                    }
-                }
+                  "input": {
+                      "title": row["title"],
+                      "descriptionHtml": row["description"],
+                      "status": "ACTIVE",
+                      "tags": [row["tag"]],
+
+                      "productOptions": [
+                          {
+                              "name": "Weight",
+                              "values": [{"name": row["weight"]}]
+                          }
+                      ],
+
+                      "variants": [
+                          {
+                              "price": row["price"],
+                              "sku": row["sku"],
+                              "inventoryQuantities": [
+                                  {
+                                      "availableQuantity": int(row["quantity"]),
+                                      "locationId": "gid://shopify/Location/YOUR_LOCATION_ID"
+                                  }
+                              ]
+                          }
+                      ]
+                  }
+              }
 
                 temp.write((json.dumps(data) + "\n").encode("utf-8"))
 
@@ -789,9 +736,3 @@ def shopify_product_webhook(request):
         return HttpResponse(status=200)
 
     return HttpResponse(status=405)
-
-
-
-
-
-
