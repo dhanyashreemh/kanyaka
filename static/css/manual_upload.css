@@ -102,3 +102,15 @@ background:#f9f9f9;
 .footer-buttons{
 margin-top:20px;
 }
+
+input, textarea, select {
+width:100%;
+border:1px solid #ced4da;
+border-radius:6px;
+padding:8px;
+}
+
+.form-check-input{
+width:auto;
+margin-right:8px;
+}

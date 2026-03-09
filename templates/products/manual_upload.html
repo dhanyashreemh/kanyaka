@@ -150,7 +150,7 @@ border-radius:6px;
 </div>
 
 <div class="form-check mb-3">
-{{ form.charge_tax }}
+{{ form.charge_tax.as_widget(attrs={'class':'form-check-input'}) }}
 <label class="form-check-label">Charge Tax</label>
 </div>
 
@@ -171,7 +171,7 @@ border-radius:6px;
 </div>
 
 <div class="form-check mb-3">
-{{ form.inventory_tracked }}
+{{ form.inventory_tracked.as_widget(attrs={'class':'form-check-input'}) }}
 <label class="form-check-label">Track Inventory</label>
 </div>
 
@@ -191,12 +191,13 @@ border-radius:6px;
 </div>
 
 <div class="form-check mb-3">
-{{ form.sell_out_of_stock }}
+{{ form.sell_out_of_stock.as_widget(attrs={'class':'form-check-input'}) }}
 <label class="form-check-label">Sell When Out Of Stock</label>
 </div>
 
 </div>
 </div>
+
 <!-- PRODUCT MEDIA -->
 
 <div class="card mb-4">
