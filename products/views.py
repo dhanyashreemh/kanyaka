@@ -8,7 +8,6 @@ from django import forms
 from .models import Product
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
-import pandas as pd
 from .forms import ProductForm
 
 
