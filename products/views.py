@@ -9,6 +9,7 @@ from .models import Product
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from .forms import ProductForm
+import json
 
 
 class ProductForm(forms.Form):
