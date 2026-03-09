@@ -4,9 +4,8 @@
 
 {% load static %}
 <title>Manual Product Upload</title>
+
 <link rel="stylesheet" href="{% static 'css/manual_upload.css' %}">
-
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
@@ -43,8 +42,26 @@ border-radius:6px;
 
 <h2 class="mb-4">Manual Product Upload</h2>
 
-<form method="post" enctype="multipart/form-data">
+<!-- NAVIGATION BUTTONS -->
 
+<div class="mb-3">
+
+<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
+{% csrf_token %}
+<button class="btn btn-secondary">Go Back</button>
+</form>
+
+<form method="post" action="{% url 'logout' %}" style="display:inline;">
+{% csrf_token %}
+<button class="btn btn-danger">Logout</button>
+</form>
+
+</div>
+
+
+<!-- MAIN PRODUCT FORM -->
+
+<form method="post" enctype="multipart/form-data">
 {% csrf_token %}
 
 <!-- PRODUCT INFO -->
@@ -100,6 +117,7 @@ border-radius:6px;
 
 </div>
 </div>
+
 
 <!-- ORGANIZATION -->
 
@@ -237,33 +255,40 @@ Product Variants
 
 <div class="card-body">
 
-<div class="row">
+<div class="row mb-3">
 
 <div class="col">
-<input class="form-control" id="variantName" placeholder="Variant Name (Size, Color)">
+<label>Option 1</label>
+<input class="form-control" id="option1_name" placeholder="Size">
+<input class="form-control mt-1" id="option1_values" placeholder="6,7,8">
 </div>
 
 <div class="col">
-<input class="form-control" id="variantValues" placeholder="Values (S,M,L)">
+<label>Option 2</label>
+<input class="form-control" id="option2_name" placeholder="Metal">
+<input class="form-control mt-1" id="option2_values" placeholder="Gold,Silver">
 </div>
 
 <div class="col">
-<button type="button" class="btn btn-primary" onclick="addVariant()">
-Add Variant
+<label>Option 3</label>
+<input class="form-control" id="option3_name" placeholder="Stone">
+<input class="form-control mt-1" id="option3_values" placeholder="Ruby,Emerald">
+</div>
+
+</div>
+
+<button type="button" class="btn btn-primary mb-3" onclick="generateVariants()">
+Generate Variants
 </button>
-</div>
 
-</div>
-
-<br>
-
-<table class="table" id="variantTable">
+<table class="table table-bordered" id="variantTable">
 
 <thead>
 <tr>
 <th>Variant</th>
-<th>Values</th>
-<th></th>
+<th>Price</th>
+<th>SKU</th>
+<th>Quantity</th>
 </tr>
 </thead>
 
@@ -278,22 +303,10 @@ Add Variant
 <input type="hidden" name="variants_data" id="variants_data">
 
 
-<button class="btn btn-success">
+<button class="btn btn-success mb-5">
 Create Product
 </button>
 
-</form>
-
-<br>
-
-<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
-{% csrf_token %}
-<button class="btn btn-secondary">Go Back</button>
-</form>
-
-<form method="post" action="{% url 'logout' %}" style="display:inline;">
-{% csrf_token %}
-<button class="btn btn-danger">Logout</button>
 </form>
 
 </div>
@@ -301,15 +314,91 @@ Create Product
 
 <script>
 
-/* IMAGE DRAG DROP */
+
+
+
+/* VARIANT GENERATOR */
+
+function generateVariants(){
+
+let values1 = document.getElementById("option1_values").value.split(",").filter(v=>v)
+let values2 = document.getElementById("option2_values").value.split(",").filter(v=>v)
+let values3 = document.getElementById("option3_values").value.split(",").filter(v=>v)
+
+let tableBody = document.querySelector("#variantTable tbody")
+tableBody.innerHTML = ""
+
+let variants = []
+
+function addVariant(v1,v2,v3){
+
+let label = [v1,v2,v3].filter(v=>v).join(" / ")
+
+let row = document.createElement("tr")
+
+row.innerHTML = `
+<td>${label}</td>
+<td><input class="form-control price"></td>
+<td><input class="form-control sku"></td>
+<td><input class="form-control qty" value="0"></td>
+`
+
+tableBody.appendChild(row)
+
+variants.push({
+option1:v1 || null,
+option2:v2 || null,
+option3:v3 || null
+})
+
+}
+
+if(values1.length && values2.length && values3.length){
+values1.forEach(v1=>{
+values2.forEach(v2=>{
+values3.forEach(v3=>{
+addVariant(v1,v2,v3)
+})
+})
+})
+}
+else if(values1.length && values2.length){
+values1.forEach(v1=>{
+values2.forEach(v2=>{
+addVariant(v1,v2,null)
+})
+})
+}
+else if(values1.length){
+values1.forEach(v1=>{
+addVariant(v1,null,null)
+})
+}
+
+document.getElementById("variants_data").value = JSON.stringify(variants)
+
+}
+
+</script>
+<script>
+
+let imageFiles = []
 
 const dropZone = document.getElementById("dropZone")
 const input = document.getElementById("imageInput")
 const preview = document.getElementById("preview")
 
+/* OPEN FILE PICKER */
+
 dropZone.onclick = () => input.click()
 
-input.addEventListener("change", handleFiles)
+/* INPUT SELECT */
+
+input.addEventListener("change", (e)=>{
+addFiles(e.target.files)
+})
+
+/* DRAG EVENTS */
 
 dropZone.addEventListener("dragover", e=>{
 e.preventDefault()
@@ -321,32 +410,45 @@ dropZone.classList.remove("dragover")
 })
 
 dropZone.addEventListener("drop", e=>{
-
 e.preventDefault()
-
 dropZone.classList.remove("dragover")
-
-input.files = e.dataTransfer.files
-
-handleFiles()
-
+addFiles(e.dataTransfer.files)
 })
 
-function handleFiles(){
+/* ADD FILES */
 
-preview.innerHTML=""
+function addFiles(files){
 
-for(const file of input.files){
+for(const file of files){
+
+imageFiles.push(file)
 
 const reader = new FileReader()
 
 reader.onload = e=>{
 
-const img=document.createElement("img")
+const wrapper = document.createElement("div")
+wrapper.className="image-item"
+wrapper.draggable=true
 
-img.src=e.target.result
+const img = document.createElement("img")
+img.src = e.target.result
 
-preview.appendChild(img)
+const remove = document.createElement("button")
+remove.innerHTML="×"
+remove.className="remove-img"
+
+remove.onclick=()=>{
+wrapper.remove()
+imageFiles = imageFiles.filter(f=>f!==file)
+updateInputFiles()
+}
+
+wrapper.appendChild(img)
+wrapper.appendChild(remove)
+preview.appendChild(wrapper)
+
+enableDrag(wrapper)
 
 }
 
@@ -354,46 +456,57 @@ reader.readAsDataURL(file)
 
 }
 
+updateInputFiles()
+
 }
 
+/* UPDATE INPUT FILE LIST */
 
-/* VARIANT BUILDER */
+function updateInputFiles(){
 
-let variants=[]
+const dt = new DataTransfer()
 
-function addVariant(){
-
-let name=document.getElementById("variantName").value
-let values=document.getElementById("variantValues").value
-
-if(!name || !values) return
-
-variants.push({
-name:name,
-values:values.split(",")
+imageFiles.forEach(file=>{
+dt.items.add(file)
 })
 
-let table=document.querySelector("#variantTable tbody")
+input.files = dt.files
 
-let row=document.createElement("tr")
+}
 
-row.innerHTML=`
-<td>${name}</td>
-<td>${values}</td>
-<td>
-<button class="btn btn-danger btn-sm"
-onclick="this.parentElement.parentElement.remove()">
-Remove
-</button>
-</td>
-`
+/* DRAG REORDER */
 
-table.appendChild(row)
+let draggedItem = null
 
-document.getElementById("variants_data").value=JSON.stringify(variants)
+function enableDrag(el){
 
-document.getElementById("variantName").value=""
-document.getElementById("variantValues").value=""
+el.addEventListener("dragstart", ()=>{
+draggedItem = el
+})
+
+el.addEventListener("dragover", e=>{
+e.preventDefault()
+})
+
+el.addEventListener("drop", e=>{
+e.preventDefault()
+
+if(draggedItem !== el){
+
+const nodes = Array.from(preview.children)
+
+const draggedIndex = nodes.indexOf(draggedItem)
+const targetIndex = nodes.indexOf(el)
+
+if(draggedIndex < targetIndex){
+preview.insertBefore(draggedItem, el.nextSibling)
+}else{
+preview.insertBefore(draggedItem, el)
+}
+
+}
+
+})
 
 }
 
