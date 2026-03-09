@@ -252,39 +252,16 @@ def create_product_shopify(title, description, price, tags=None, image_url=None)
 # ----------------------------
 # MANUAL PRODUCT UPLOAD
 # ----------------------------
+# 
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from .forms import ProductForm
+
 @login_required
 def manual_product_upload(request):
-
-    if request.method == "POST":
-
-        form = ProductForm(request.POST, request.FILES)
-
-        if form.is_valid():
-
-            data = form.cleaned_data
-
-            images = request.FILES.getlist("images")
-
-            variants_data = request.POST.get("variants_data")
-
-            variants = json.loads(variants_data) if variants_data else []
-
-            create_product_shopify(
-                data,
-                images,
-                variants
-            )
-
-            return redirect("staff_panel")
-
-    else:
-        form = ProductForm()
-
-    return render(
-        request,
-        "products/manual_upload.html",
-        {"form": form}
-    )
+    form = ProductForm()
+    return render(request, "products/manual_upload.html", {"form": form})
 # ----------------------------
 # BULK CSV UPLOAD
 # ----------------------------
