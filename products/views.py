@@ -8,7 +8,6 @@ from django import forms
 from .models import Product
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
-import pandas as pd
 import json
 import tempfile
 
@@ -325,11 +324,6 @@ def bulk_product_upload(request):
                 decoded_file = file.read().decode("utf-8")
                 io_string = io.StringIO(decoded_file)
                 reader = list(csv.DictReader(io_string))
-
-            elif file.name.endswith(".xlsx"):
-                df = pd.read_excel(file)
-                reader = df.to_dict(orient="records")
-
             else:
                 return render(request, "products/bulk_upload.html", {
                     "form": form,
