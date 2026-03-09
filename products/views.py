@@ -159,6 +159,12 @@ def create_product_shopify(title,description,price,collection=None,compare_price
     data = response.json()
     print("PRODUCT CREATE RESPONSE:", data)
 
+    if "errors" in data:
+        raise Exception(f"Shopify API Error: {data['errors']}")
+
+    if not data.get("data") or not data["data"]["productCreate"]["product"]:
+        raise Exception(f"Shopify product creation failed: {data}")
+
     product_data = data["data"]["productCreate"]["product"]
     product_id = product_data["id"]
 
@@ -285,7 +291,7 @@ def manual_product_upload(request):
                 description=data["description"],
                 price=data["price"],
                 collection=data["collection"],
-                compare_price=data["compare_price"],
+                compare_price=data["compare_price"] ,
                 jewelry_type=data["jewelry_type"],
                 metal_type=data["metal_type"],
                 stone_type=data["stone_type"],
