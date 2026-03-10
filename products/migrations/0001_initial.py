@@ -33,7 +33,6 @@ class Migration(migrations.Migration):
                 ('barcode', models.CharField(blank=True, max_length=100, null=True)),
                 ('quantity', models.IntegerField(default=0)),
                 ('cost_per_item', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('track_inventory', models.BooleanField(default=True)),
                 ('sell_out_of_stock', models.BooleanField(default=False)),
                 ('charge_tax', models.BooleanField(default=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),

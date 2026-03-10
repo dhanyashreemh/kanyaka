@@ -4,6 +4,7 @@ from django.db import models
 class Product(models.Model):
 
     shopify_product_id = models.CharField(max_length=255, unique=True)
+    shopify_variant_id = models.CharField(max_length=255, blank=True, null=True)
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
