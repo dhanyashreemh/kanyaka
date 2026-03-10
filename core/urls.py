@@ -27,8 +27,6 @@ urlpatterns = [
 
     # Default redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
-
-    path('why/', include('why.urls')), 
 ]
 
 if settings.DEBUG:
