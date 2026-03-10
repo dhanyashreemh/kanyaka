@@ -109,6 +109,8 @@ def publish_product_to_online_store(product_id):
 
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
+# SHOPIFY GRAPHQL FUNCTION
+# ----------------------------
 def create_product_shopify(
     title,
     description,
@@ -132,7 +134,6 @@ def create_product_shopify(
     sell_out_of_stock=False,
     image_url=None
 ):
-
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
     headers = {
@@ -146,9 +147,8 @@ def create_product_shopify(
         tag_list = [t.strip() for t in tags.split(",")]
 
     # -------------------------
-    # Create Product
+    # Step 1: Create Product
     # -------------------------
-
     create_query = """
     mutation productCreate($input: ProductCreateInput!) {
       productCreate(product: $input) {
@@ -174,18 +174,13 @@ def create_product_shopify(
     variables = {
         "input": {
             "title": title,
-            "descriptionHtml": description,
+            "descriptionHtml": description or "",
             "status": "ACTIVE",
-            "tags": tag_list
+            "tags": tag_list,
         }
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        json={"query": create_query, "variables": variables}
-    )
-
+    response = requests.post(url, headers=headers, json={"query": create_query, "variables": variables})
     data = response.json()
     print("PRODUCT CREATE RESPONSE:", data)
 
@@ -197,20 +192,25 @@ def create_product_shopify(
 
     product_data = data["data"]["productCreate"]["product"]
     product_id = product_data["id"]
-
-    variant_data = product_data["variants"]["edges"][0]["node"]
-    variant_id = variant_data["id"]
+    variant_id = product_data["variants"]["edges"][0]["node"]["id"]
 
     # -------------------------
-    # Update Price
+    # Step 2: Update Variant (price, sku, barcode, tax, inventory etc.)
     # -------------------------
-
     update_query = """
     mutation updateVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
       productVariantsBulkUpdate(productId: $productId, variants: $variants) {
         productVariants {
           id
           price
+          compareAtPrice
+          sku
+          barcode
+          taxable
+          inventoryPolicy
+          inventoryItem {
+            tracked
+          }
         }
         userErrors {
           message
@@ -219,28 +219,93 @@ def create_product_shopify(
     }
     """
 
-    update_variables = {
-        "productId": product_id,
-        "variants": [
-            {
-                "id": variant_id,
-                "price": str(price)
-            }
-        ]
+    variant_input = {
+        "id": variant_id,
+        "price": str(price),
+        "compareAtPrice": str(compare_price) if compare_price else None,
+        "sku": sku or "",
+        "barcode": barcode or "",
+        "taxable": charge_tax,
+        "inventoryPolicy": "CONTINUE" if sell_out_of_stock else "DENY",
+        "inventoryItem": {
+            "tracked": inventory_tracked,
+            "cost": str(cost_per_item) if cost_per_item else None,
+        }
     }
 
-    requests.post(
+    # Add weight if provided
+    if weight:
+        variant_input["inventoryItem"]["measurement"] = {
+            "weight": {
+                "value": float(weight),
+                "unit": "GRAMS"
+            }
+        }
+
+    update_response = requests.post(
         url,
         headers=headers,
-        json={"query": update_query, "variables": update_variables}
+        json={
+            "query": update_query,
+            "variables": {
+                "productId": product_id,
+                "variants": [variant_input]
+            }
+        }
     )
+    print("VARIANT UPDATE RESPONSE:", update_response.json())
 
     # -------------------------
-    # Add Image (if provided)
+    # Step 3: Set Inventory Quantity
     # -------------------------
+    if inventory_tracked and quantity:
 
+        # Get inventory item id
+        inv_query = """
+        query getVariant($id: ID!) {
+          productVariant(id: $id) {
+            inventoryItem {
+              id
+            }
+          }
+        }
+        """
+        inv_response = requests.post(url, headers=headers, json={"query": inv_query, "variables": {"id": variant_id}})
+        inv_data = inv_response.json()
+        print("INVENTORY ITEM RESPONSE:", inv_data)
+        inventory_item_id = inv_data["data"]["productVariant"]["inventoryItem"]["id"]
+
+        # Get first location id
+        loc_query = "{ locations(first: 1) { edges { node { id } } } }"
+        loc_response = requests.post(url, headers=headers, json={"query": loc_query})
+        location_id = loc_response.json()["data"]["locations"]["edges"][0]["node"]["id"]
+
+        # Set quantity
+        qty_mutation = """
+        mutation setQuantity($input: InventorySetQuantitiesInput!) {
+          inventorySetQuantities(input: $input) {
+            userErrors { message }
+          }
+        }
+        """
+        qty_variables = {
+            "input": {
+                "reason": "correction",
+                "name": "available",
+                "quantities": [{
+                    "inventoryItemId": inventory_item_id,
+                    "locationId": location_id,
+                    "quantity": quantity
+                }]
+            }
+        }
+        qty_response = requests.post(url, headers=headers, json={"query": qty_mutation, "variables": qty_variables})
+        print("QUANTITY SET RESPONSE:", qty_response.json())
+
+    # -------------------------
+    # Step 4: Add Image
+    # -------------------------
     if image_url:
-
         image_query = """
         mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
           productCreateMedia(productId: $productId, media: $media) {
@@ -254,58 +319,45 @@ def create_product_shopify(
           }
         }
         """
-
         image_variables = {
             "productId": product_id,
-            "media": [
-                {
-                    "mediaContentType": "IMAGE",
-                    "originalSource": image_url
-                }
-            ]
+            "media": [{
+                "mediaContentType": "IMAGE",
+                "originalSource": image_url
+            }]
         }
-
-        requests.post(
-            url,
-            headers=headers,
-            json={"query": image_query, "variables": image_variables}
-        )
+        img_response = requests.post(url, headers=headers, json={"query": image_query, "variables": image_variables})
+        print("IMAGE RESPONSE:", img_response.json())
 
     # -------------------------
-    # Publish to Store
+    # Step 5: Save to Database
     # -------------------------
-
-    # publish_product_to_online_store(product_id)
-
-    # -------------------------
-    # Save to Database
-    # -------------------------
-
     Product.objects.update_or_create(
-    shopify_product_id=product_id,
-    defaults={
-        "shopify_variant_id": variant_id,
-        "title": title,
-        "description": description,
-        "price": price,
-        "compare_price": compare_price,
-        "collection": collection,
-        "jewelry_type": jewelry_type,
-        "metal_type": metal_type,
-        "stone_type": stone_type,
-        "purity": purity,
-        "occasion": occasion,
-        "weight": weight,
-        "quantity": quantity,
-        "sku": sku,
-        "barcode": barcode,
-        "cost_per_item": cost_per_item,
-        "unit_price": unit_price,
-        "charge_tax": charge_tax,
-        "inventory_tracked": inventory_tracked,
-        "sell_out_of_stock": sell_out_of_stock,
-    }
-)
+        shopify_product_id=product_id,
+        defaults={
+            "shopify_variant_id": variant_id,
+            "title": title,
+            "description": description,
+            "price": price,
+            "compare_price": compare_price,
+            "collection": collection,
+            "tags": tags,
+            "jewelry_type": jewelry_type,
+            "metal_type": metal_type,
+            "stone_type": stone_type,
+            "purity": purity,
+            "occasion": occasion,
+            "weight": weight,
+            "quantity": quantity,
+            "sku": sku,
+            "barcode": barcode,
+            "cost_per_item": cost_per_item,
+            "unit_price": unit_price,
+            "charge_tax": charge_tax,
+            "inventory_tracked": inventory_tracked,
+            "sell_out_of_stock": sell_out_of_stock,
+        }
+    )
 
     return product_data
 # ----------------------------
