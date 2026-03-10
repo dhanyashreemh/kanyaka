@@ -309,29 +309,8 @@ def create_product_shopify(
             }
             qty_response = requests.post(url, headers=headers, json={"query": qty_mutation, "variables": qty_variables})
             print("QUANTITY SET RESPONSE:", qty_response.json())
-
-        # Set quantity
-        qty_mutation = """
-        mutation setQuantity($input: InventorySetQuantitiesInput!) {
-          inventorySetQuantities(input: $input) {
-            userErrors { message }
-          }
-        }
-        """
-        qty_variables = {
-            "input": {
-                "reason": "correction",
-                "name": "available",
-                "quantities": [{
-                    "inventoryItemId": inventory_item_id,
-                    "locationId": location_id,
-                    "quantity": quantity
-                }]
-            }
-        }
-        qty_response = requests.post(url, headers=headers, json={"query": qty_mutation, "variables": qty_variables})
-        print("QUANTITY SET RESPONSE:", qty_response.json())
-
+  
+        
     # -------------------------
     # Step 4: Add Image
     # -------------------------
