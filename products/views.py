@@ -13,23 +13,6 @@ import tempfile
 from .forms import ProductForm
 
 
-
-# class ProductForm(forms.Form):
-#     title = forms.CharField(max_length=255)
-#     description = forms.CharField(widget=forms.Textarea, required=False)
-#     price = forms.DecimalField(max_digits=10, decimal_places=2)
-#     compare_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
-#     collection = forms.CharField(required=False)
-#     jewelry_type = forms.CharField(required=False)
-#     metal_type = forms.CharField(required=False)
-#     stone_type = forms.CharField(required=False)
-#     purity = forms.CharField(required=False)
-#     occasion = forms.CharField(required=False)
-#     weight = forms.DecimalField(required=False)
-#     quantity = forms.IntegerField()
-#     sku = forms.CharField(required=False)
-
-
 class CSVUploadForm(forms.Form):
     file = forms.FileField()
 
@@ -71,7 +54,6 @@ def get_online_store_publication_id():
             return pub["node"]["id"]
 
     return None
-
 
 
 #publishes the product to Online Store.

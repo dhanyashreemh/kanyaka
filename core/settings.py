@@ -20,7 +20,6 @@ SECRET_KEY = 'django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "ivory-formulistic-groundedly.ngrok-free.dev",
     "127.0.0.1",
     "localhost",
     "kanyaka.onrender.com",
@@ -160,7 +159,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://ivory-formulistic-groundedly.ngrok-free.dev",
     "https://kanyaka.onrender.com",
 ]
 
@@ -168,6 +166,3 @@ CSRF_TRUSTED_ORIGINS = [
 SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
 SHOPIFY_STORE = "tewgnw-e7.myshopify.com"
 SHOPIFY_WEBHOOK_SECRET = "cbe74e93f85e4baf143474c6893178824f80311ce84b6e19b85bcc489626cdbd"
-
-
-
