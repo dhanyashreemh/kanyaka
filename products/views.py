@@ -143,7 +143,7 @@ def create_product_shopify(
     # -------------------------
 
     create_query = """
-    mutation productCreate($input: ProductInput!) {
+    mutation productCreate($input: ProductCreateInput!) {
       productCreate(product: $input) {
         product {
           id
@@ -456,7 +456,7 @@ def bulk_product_upload(request):
             mutation {{
               bulkOperationRunMutation(
                 mutation: \"\"\"
-                mutation productCreate($input: ProductInput!) {{
+                mutation productCreate($input: ProductCreateInput!) {{
                   productCreate(input: $input) {{
                     product {{
                       id
@@ -729,7 +729,7 @@ def run_bulk_operation(staged_path):
     mutation {{
       bulkOperationRunMutation(
         mutation: \"\"\"
-        mutation productCreate($input: ProductInput!) {{
+        mutation productCreate($input: ProductCreateInput!) {{
           productCreate(input: $input) {{
             product {{
               id
