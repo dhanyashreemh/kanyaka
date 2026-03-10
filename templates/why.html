@@ -1,0 +1,35 @@
+{% load static %}
+
+<!doctype html>
+<html>
+  <head>
+    <title>Create Product</title>
+    <link rel="stylesheet" href="{% static 'css/why.css' %}" />
+  </head>
+
+  <body>
+    <div class="form-container">
+      <h2>Create Product</h2>
+
+      <form method="POST">
+        {% csrf_token %}
+
+        <label>Title</label>
+        {{ form.title }}
+
+        <label>Description</label>
+        {{ form.description }}
+
+        <label>Price</label>
+        {{ form.price }}
+
+        <div class="checkbox-group">
+          {{ form.track_inventory }}
+          <span>Track Inventory</span>
+        </div>
+
+        <button type="submit">Create Product</button>
+      </form>
+    </div>
+  </body>
+</html>

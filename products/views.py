@@ -10,23 +10,24 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 import json
 import tempfile
+from .forms import ProductForm
 
 
 
-class ProductForm(forms.Form):
-    title = forms.CharField(max_length=255)
-    description = forms.CharField(widget=forms.Textarea, required=False)
-    price = forms.DecimalField(max_digits=10, decimal_places=2)
-    compare_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
-    collection = forms.CharField(required=False)
-    jewelry_type = forms.CharField(required=False)
-    metal_type = forms.CharField(required=False)
-    stone_type = forms.CharField(required=False)
-    purity = forms.CharField(required=False)
-    occasion = forms.CharField(required=False)
-    weight = forms.DecimalField(required=False)
-    quantity = forms.IntegerField()
-    sku = forms.CharField(required=False)
+# class ProductForm(forms.Form):
+#     title = forms.CharField(max_length=255)
+#     description = forms.CharField(widget=forms.Textarea, required=False)
+#     price = forms.DecimalField(max_digits=10, decimal_places=2)
+#     compare_price = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+#     collection = forms.CharField(required=False)
+#     jewelry_type = forms.CharField(required=False)
+#     metal_type = forms.CharField(required=False)
+#     stone_type = forms.CharField(required=False)
+#     purity = forms.CharField(required=False)
+#     occasion = forms.CharField(required=False)
+#     weight = forms.DecimalField(required=False)
+#     quantity = forms.IntegerField()
+#     sku = forms.CharField(required=False)
 
 
 class CSVUploadForm(forms.Form):
@@ -101,7 +102,29 @@ def publish_product_to_online_store(product_id):
 
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
-def create_product_shopify(title,description,price,collection=None,compare_price=None,jewelry_type=None,metal_type=None,stone_type=None,purity=None,occasion=None,weight=None,quantity=0,sku=None,tags=None,image_url=None):
+def create_product_shopify(
+    title,
+    description,
+    price,
+    collection=None,
+    compare_price=None,
+    jewelry_type=None,
+    metal_type=None,
+    stone_type=None,
+    purity=None,
+    occasion=None,
+    weight=None,
+    quantity=0,
+    sku=None,
+    tags=None,
+    barcode=None,
+    cost_per_item=None,
+    unit_price=None,
+    charge_tax=False,
+    inventory_tracked=False,
+    sell_out_of_stock=False,
+    image_url=None
+):
 
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
@@ -252,22 +275,23 @@ def create_product_shopify(title,description,price,collection=None,compare_price
     # -------------------------
 
     Product.objects.update_or_create(
-      shopify_product_id=product_id,
-      defaults={
-          "title": title,
-          "description": description,
-          "price": price,
-          "compare_price": compare_price,
-          "collection": collection,
-          "jewelry_type": jewelry_type,
-          "metal_type": metal_type,
-          "stone_type": stone_type,
-          "purity": purity,
-          "occasion": occasion,
-          "weight": weight,
-          "quantity": quantity,
-          "sku": sku
-      }
+    shopify_product_id=product_id,
+    defaults={
+        "title": title,
+        "description": description,
+        "price": price,
+        "compare_price": compare_price,
+        "collection": collection,
+        "jewelry_type": jewelry_type,
+        "metal_type": metal_type,
+        "stone_type": stone_type,
+        "purity": purity,
+        "occasion": occasion,
+        "weight": weight,
+        "quantity": quantity,
+        "sku": sku,
+        "barcode": barcode,
+    }
   )
 
     return product_data
@@ -279,27 +303,32 @@ def create_product_shopify(title,description,price,collection=None,compare_price
 def manual_product_upload(request):
 
     if request.method == "POST":
-
         form = ProductForm(request.POST)
 
         if form.is_valid():
-
             data = form.cleaned_data
 
             create_product_shopify(
                 title=data["title"],
                 description=data["description"],
                 price=data["price"],
-                collection=data["collection"],
-                compare_price=data["compare_price"] ,
-                jewelry_type=data["jewelry_type"],
-                metal_type=data["metal_type"],
-                stone_type=data["stone_type"],
-                purity=data["purity"],
-                occasion=data["occasion"],
-                weight=data["weight"],
-                quantity=data["quantity"],
-                sku=data["sku"],
+                compare_price=data.get("compare_price"),
+                collection=data.get("collection"),
+                jewelry_type=data.get("jewelry_type"),
+                metal_type=data.get("metal_type"),
+                stone_type=data.get("stone_type"),
+                purity=data.get("purity"),
+                occasion=data.get("occasion"),
+                weight=data.get("weight"),
+                quantity=data.get("quantity"),
+                sku=data.get("sku"),
+                tags=data.get("tags"),
+                barcode=data.get("barcode"),
+                cost_per_item=data.get("cost_per_item"),
+                unit_price=data.get("unit_price"),
+                charge_tax=data.get("charge_tax"),
+                inventory_tracked=data.get("inventory_tracked"),
+                sell_out_of_stock=data.get("sell_out_of_stock"),
             )
 
             return redirect("staff_products")
@@ -321,11 +350,8 @@ def bulk_product_upload(request):
         if form.is_valid():
             file = request.FILES["file"]
 
-            # -----------------------------
             # 1️⃣ Convert CSV → JSONL
-            # -----------------------------
-            # -----------------------------
-
+        
             if file.name.endswith(".csv"):
                 decoded_file = file.read().decode("utf-8")
                 io_string = io.StringIO(decoded_file)
@@ -545,8 +571,6 @@ def delete_product(request, pk):
     return render(request, "staff/delete_product.html", {"product": product})
 
 
-import requests
-
 def update_product_shopify(product):
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
 
@@ -577,6 +601,7 @@ def update_product_shopify(product):
       productVariantsBulkUpdate(
         productId: "{product_id}",
         variants: [{{
+          id: "VARIANT_ID",
           price: "{product.price}"
         }}]
       ) {{
