@@ -276,9 +276,39 @@ def create_product_shopify(
         inventory_item_id = inv_data["data"]["productVariant"]["inventoryItem"]["id"]
 
         # Get first location id
+        
         loc_query = "{ locations(first: 1) { edges { node { id } } } }"
         loc_response = requests.post(url, headers=headers, json={"query": loc_query})
-        location_id = loc_response.json()["data"]["locations"]["edges"][0]["node"]["id"]
+        loc_data = loc_response.json()
+        print("LOCATION RESPONSE:", loc_data)
+
+        locations = loc_data.get("data", {}).get("locations", {}).get("edges", [])
+        if not locations:
+            print("WARNING: No locations found, skipping inventory quantity set")
+        else:
+            location_id = locations[0]["node"]["id"]
+
+            # Set quantity
+            qty_mutation = """
+            mutation setQuantity($input: InventorySetQuantitiesInput!) {
+              inventorySetQuantities(input: $input) {
+                userErrors { message }
+              }
+            }
+            """
+            qty_variables = {
+                "input": {
+                    "reason": "correction",
+                    "name": "available",
+                    "quantities": [{
+                        "inventoryItemId": inventory_item_id,
+                        "locationId": location_id,
+                        "quantity": quantity
+                    }]
+                }
+            }
+            qty_response = requests.post(url, headers=headers, json={"query": qty_mutation, "variables": qty_variables})
+            print("QUANTITY SET RESPONSE:", qty_response.json())
 
         # Set quantity
         qty_mutation = """
