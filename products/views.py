@@ -235,8 +235,15 @@ def create_product_shopify(
             }
         }
     )
-    print("VARIANT UPDATE RESPONSE:", update_response.json())
+    update_data = update_response.json()
+    print("VARIANT UPDATE RESPONSE:", update_data)
 
+    # Check for errors
+    variant_result = update_data.get("data", {}).get("productVariantsBulkUpdate", {})
+    if variant_result.get("userErrors"):
+        print("❌ VARIANT UPDATE ERRORS:", variant_result["userErrors"])
+    else:
+        print("✅ VARIANT UPDATE SUCCESS")
     # -------------------------
     # Step 3: Set Inventory Quantity
     # -------------------------
