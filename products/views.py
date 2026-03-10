@@ -59,7 +59,14 @@ def get_online_store_publication_id():
     response = requests.post(url, json={"query": query}, headers=headers)
     data = response.json()
 
-    for pub in data["data"]["publications"]["edges"]:
+    print("PUBLICATION RESPONSE:", data)
+
+    publications = data.get("data", {}).get("publications")
+
+    if not publications:
+        return None
+
+    for pub in publications["edges"]:
         if pub["node"]["name"] == "Online Store":
             return pub["node"]["id"]
 
@@ -96,9 +103,9 @@ def publish_product_to_online_store(product_id):
     }}
     """
 
-    response = requests.post(url, json={"query": mutation}, headers=headers)
+#     response = requests.post(url, json={"query": mutation}, headers=headers)
 
-    print("Publish response:", response.json())
+#     print("Publish response:", response.json())
 
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
@@ -268,7 +275,7 @@ def create_product_shopify(
     # Publish to Store
     # -------------------------
 
-    publish_product_to_online_store(product_id)
+    # publish_product_to_online_store(product_id)
 
     # -------------------------
     # Save to Database
@@ -277,6 +284,7 @@ def create_product_shopify(
     Product.objects.update_or_create(
     shopify_product_id=product_id,
     defaults={
+        "shopify_variant_id": variant_id,
         "title": title,
         "description": description,
         "price": price,
@@ -291,8 +299,13 @@ def create_product_shopify(
         "quantity": quantity,
         "sku": sku,
         "barcode": barcode,
+        "cost_per_item": cost_per_item,
+        "unit_price": unit_price,
+        "charge_tax": charge_tax,
+        "inventory_tracked": inventory_tracked,
+        "sell_out_of_stock": sell_out_of_stock,
     }
-  )
+)
 
     return product_data
 # ----------------------------
@@ -457,7 +470,7 @@ def bulk_product_upload(request):
               bulkOperationRunMutation(
                 mutation: \"\"\"
                 mutation productCreate($input: ProductCreateInput!) {{
-                  productCreate(input: $input) {{
+                  productCreate(product: $input) {{
                     product {{
                       id
                     }}
@@ -601,7 +614,7 @@ def update_product_shopify(product):
       productVariantsBulkUpdate(
         productId: "{product_id}",
         variants: [{{
-          id: "VARIANT_ID",
+          id: product.shopify_variant_id,
           price: "{product.price}"
         }}]
       ) {{
@@ -730,7 +743,7 @@ def run_bulk_operation(staged_path):
       bulkOperationRunMutation(
         mutation: \"\"\"
         mutation productCreate($input: ProductCreateInput!) {{
-          productCreate(input: $input) {{
+          productCreate(product: $input) {{
             product {{
               id
               title

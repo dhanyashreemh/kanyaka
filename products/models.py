@@ -29,7 +29,7 @@ class Product(models.Model):
     quantity = models.IntegerField(default=0)
     cost_per_item = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
-    track_inventory = models.BooleanField(default=True)
+    inventory_tracked  = models.BooleanField(default=True)
     sell_out_of_stock = models.BooleanField(default=False)
     charge_tax = models.BooleanField(default=True)
 
