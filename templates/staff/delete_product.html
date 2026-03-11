@@ -1,6 +1,22 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
+<style>
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .btn-group form {
+    width: 100%;
+  }
+</style>
+
 <div class="delete-card">
   <span class="warning-icon">🗑️</span>
   <h2>Delete Product</h2>
@@ -10,14 +26,12 @@
     <strong>"{{ product.title }}"</strong>?<br />This action cannot be undone.
   </p>
 
-  <!-- Confirm Delete -->
   <div class="btn-group">
     <form method="post">
       {% csrf_token %}
       <button type="submit" class="btn btn-delete">Yes, Delete</button>
     </form>
 
-    <!-- Cancel + Go Back -->
     <div class="btn-row">
       <form method="post" action="{% url 'staff_products' %}" style="flex: 1">
         {% csrf_token %}
@@ -27,16 +41,17 @@
       </form>
       <form method="post" action="{% url 'staff_panel' %}" style="flex: 1">
         {% csrf_token %}
-        <button type="submit" class="btn btn-back" style="width: 100%">
+        <button type="submit" class="btn" style="width: 100%">
           🏠 Staff Panel
         </button>
       </form>
     </div>
 
-    <!-- Logout -->
     <form method="post" action="{% url 'logout' %}">
       {% csrf_token %}
-      <button type="submit" class="btn btn-logout">Logout</button>
+      <button type="submit" class="btn btn-danger" style="width: 100%">
+        🚪 Logout
+      </button>
     </form>
   </div>
 </div>

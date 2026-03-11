@@ -498,3 +498,57 @@ tbody td {
     padding: 24px 16px;
   }
 }
+
+/* ── Delete Card ── */
+.delete-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px 48px;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.warning-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.delete-card h2 {
+  margin-bottom: 12px;
+}
+
+.delete-card p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-delete {
+  width: 100%;
+  background: #c0392b;
+  color: #fff;
+  border-color: #c0392b;
+  font-weight: 600;
+  padding: 12px;
+}
+.btn-delete:hover {
+  background: #a93226;
+  color: #fff;
+}
+
+/* ── Centered Page Layout (login, delete, staff panel) ── */
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
