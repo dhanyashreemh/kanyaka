@@ -1,13 +1,298 @@
-<h2>Edit Product</h2>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/editProduct.css' %}" />
+
+{% if messages %} {% for message in messages %}
+<div class="alert">{{ message }}</div>
+{% endfor %} {% endif %}
+
+<div class="page-header">
+  <h2>Edit Product</h2>
+  <a href="{% url 'staff_products' %}" class="back-link">← Back to Products</a>
+</div>
 
 <form method="post">
-    {% csrf_token %}
-    Title: <input type="text" name="title" value="{{ product.title }}"><br><br>
-    Price: <input type="number" step="0.01" name="price" value="{{ product.price }}"><br><br>
-    <button type="submit">Update</button>
-</form>
+  {% csrf_token %}
 
-<br>
-<form method="post" action="{% url 'staff_products' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">cancel</button> </form>|
+  <div class="layout">
+    <!-- LEFT COLUMN -->
+     <div class="card">
+        <div class="card-header">
+          <span class="icon">🔗</span>
+          <h3>Shopify</h3>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>Product ID</label>
+            <input
+              type="text"
+              value="{{ product.shopify_product_id }}"
+              disabled
+            />
+          </div>
+          <div class="field">
+            <label>Variant ID</label>
+            <input
+              type="text"
+              value="{{ product.shopify_variant_id }}"
+              disabled
+            />
+          </div>
+          <div class="readonly-note">
+            🔒 Managed automatically — cannot be edited
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">🕒</span>
+          <h3>Meta</h3>
+        </div>
+        <div class="card-body">
+          <div class="meta-row">
+            <span>Created</span>
+            <span>{{ product.created_at|date:"M d, Y" }}</span>
+          </div>
+          <div class="meta-row" style="margin-top: 8px">
+            <span>Time</span>
+            <span>{{ product.created_at|date:"H:i" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">📝</span>
+          <h3>Basic Info</h3>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>Title <span style="color: var(--accent)">*</span></label>
+            <input
+              type="text"
+              name="title"
+              value="{{ product.title }}"
+              required
+            />
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea name="description">{{ product.description }}</textarea>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label>Collection</label>
+              <input
+                type="text"
+                name="collection"
+                value="{{ product.collection }}"
+              />
+            </div>
+            <div class="field">
+              <label
+                >Tags
+                <small style="text-transform: none; font-size: 11px"
+                  >(comma-separated)</small
+                ></label
+              >
+              <input type="text" name="tags" value="{{ product.tags }}" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">💍</span>
+          <h3>Jewelry Details</h3>
+        </div>
+        <div class="card-body">
+          <div class="field-grid">
+            <div class="field">
+              <label>Jewelry Type</label>
+              <input
+                type="text"
+                name="jewelry_type"
+                value="{{ product.jewelry_type }}"
+              />
+            </div>
+            <div class="field">
+              <label>Metal Type</label>
+              <input
+                type="text"
+                name="metal_type"
+                value="{{ product.metal_type }}"
+              />
+            </div>
+            <div class="field">
+              <label>Stone Type</label>
+              <input
+                type="text"
+                name="stone_type"
+                value="{{ product.stone_type }}"
+              />
+            </div>
+            <div class="field">
+              <label>Purity</label>
+              <input type="text" name="purity" value="{{ product.purity }}" />
+            </div>
+            <div class="field">
+              <label>Occasion</label>
+              <input
+                type="text"
+                name="occasion"
+                value="{{ product.occasion }}"
+              />
+            </div>
+            <div class="field">
+              <label>Weight (g)</label>
+              <input
+                type="number"
+                step="0.01"
+                name="weight"
+                value="{{ product.weight }}"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">📦</span>
+          <h3>Inventory</h3>
+        </div>
+        <div class="card-body">
+          <div class="field-grid">
+            <div class="field">
+              <label>SKU</label>
+              <input type="text" name="sku" value="{{ product.sku }}" />
+            </div>
+            <div class="field">
+              <label>Barcode</label>
+              <input type="text" name="barcode" value="{{ product.barcode }}" />
+            </div>
+          </div>
+          <div class="field" style="margin-top: 12px">
+            <label>Quantity</label>
+            <input
+              type="number"
+              name="quantity"
+              value="{{ product.quantity }}"
+              min="0"
+              style="max-width: 160px"
+            />
+          </div>
+          <div style="margin-top: 16px">
+            <label class="check-label">
+              <input
+                type="checkbox"
+                name="inventory_tracked"
+                {%
+                if
+                product.inventory_tracked
+                %}checked{%
+                endif
+                %}
+              />
+              <div class="check-text">
+                <strong>Track inventory</strong>
+                <small>Monitor stock levels for this product</small>
+              </div>
+            </label>
+            <label class="check-label">
+              <input
+                type="checkbox"
+                name="sell_out_of_stock"
+                {%
+                if
+                product.sell_out_of_stock
+                %}checked{%
+                endif
+                %}
+              />
+              <div class="check-text">
+                <strong>Continue selling when out of stock</strong>
+                <small>Allow purchases even when quantity reaches zero</small>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">💰</span>
+          <h3>Pricing</h3>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>Price <span style="color: var(--accent)">*</span></label>
+            <input
+              type="number"
+              step="0.01"
+              name="price"
+              value="{{ product.price }}"
+              required
+            />
+          </div>
+          <div class="field">
+            <label>Compare-at Price</label>
+            <input
+              type="number"
+              step="0.01"
+              name="compare_price"
+              value="{{ product.compare_price }}"
+            />
+          </div>
+          <div class="field">
+            <label>Unit Price</label>
+            <input
+              type="number"
+              step="0.01"
+              name="unit_price"
+              value="{{ product.unit_price }}"
+            />
+          </div>
+          <div class="field">
+            <label>Cost per Item</label>
+            <input
+              type="number"
+              step="0.01"
+              name="cost_per_item"
+              value="{{ product.cost_per_item }}"
+            />
+          </div>
+          <label class="check-label" style="margin-top: 8px">
+            <input
+              type="checkbox"
+              name="charge_tax"
+              {%
+              if
+              product.charge_tax
+              %}checked{%
+              endif
+              %}
+            />
+            <div class="check-text">
+              <strong>Charge tax</strong>
+              <small>Apply tax to this product</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      
+
+  <div class="action-bar">
+    <button type="submit" class="btn-save">💾 Save Changes</button>
+    <a href="{% url 'staff_products' %}" class="btn-cancel">Cancel</a>
+    <span class="action-hint">* Required fields</span>
+  </div>
+</form>

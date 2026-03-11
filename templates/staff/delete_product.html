@@ -1,22 +1,42 @@
-<h2>Delete Product</h2>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
-<p>Are you sure you want to delete "{{ product.title }}"?</p>
+<div class="delete-card">
+  <span class="warning-icon">🗑️</span>
+  <h2>Delete Product</h2>
+  <hr />
+  <p>
+    Are you sure you want to delete
+    <strong>"{{ product.title }}"</strong>?<br />This action cannot be undone.
+  </p>
 
-<form method="post">
-    {% csrf_token %}
-    <button type="submit">Yes, Delete</button>
-</form>
+  <!-- Confirm Delete -->
+  <div class="btn-group">
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-delete">Yes, Delete</button>
+    </form>
 
+    <!-- Cancel + Go Back -->
+    <div class="btn-row">
+      <form method="post" action="{% url 'staff_products' %}" style="flex: 1">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-cancel" style="width: 100%">
+          ← Cancel
+        </button>
+      </form>
+      <form method="post" action="{% url 'staff_panel' %}" style="flex: 1">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-back" style="width: 100%">
+          🏠 Staff Panel
+        </button>
+      </form>
+    </div>
 
-<form method="post" action="{% url 'staff_products' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">cancel</button> </form>|
-
-
-<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Go Back</button> </form>|
-<form method="post" action="{% url 'logout' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-</form>
+    <!-- Logout -->
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-logout">Logout</button>
+    </form>
+  </div>
+</div>

@@ -1,35 +1,95 @@
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}" />
+
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 36px 40px;
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .title {
+    margin-bottom: 0;
+  }
+
+  .upload-box label {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .format-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin-bottom: -12px;
+  }
+
+  .csv-format {
+    background: #fafaf8;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    color: var(--accent-dark);
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+  .actions form {
+    flex: 1;
+  }
+  .actions .btn {
+    width: 100%;
+  }
+</style>
 
 <h2 class="title">Bulk Product Upload</h2>
 
 <div class="upload-box">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %} {{ form.as_p }}
+    <button class="btn btn-success" type="submit">📂 Upload CSV</button>
+  </form>
 
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn primary-btn" type="submit">Upload CSV</button>
-</form>
-
-<p class="format-title">CSV Format:</p>
-
-<pre class="csv-format">
+  <p class="format-title">CSV Format:</p>
+  <pre class="csv-format">
 title,description,price
 Ring 1,Gold ring description,5000
-Chain 2,Gold chain description,10000
-</pre>
+Chain 2,Gold chain description,10000</pre
+  >
 
-<div class="actions">
-
-<form method="post" action="{% url 'staff_panel' %}">
-    {% csrf_token %}
-    <button class="btn secondary-btn" type="submit">Go Back</button>
-</form>
-
-<form method="post" action="{% url 'logout' %}">
-    {% csrf_token %}
-    <button class="btn logout-btn" type="submit">Logout</button>
-</form>
-
-</div>
-
+  <div class="actions">
+    <form method="post" action="{% url 'staff_panel' %}">
+      {% csrf_token %}
+      <button class="btn" type="submit">← Go Back</button>
+    </form>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">🚪 Logout</button>
+    </form>
+  </div>
 </div>

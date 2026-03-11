@@ -1,24 +1,62 @@
-<h2>Staff Panel</h2>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
-<hr>
+<style>
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
+  .panel-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 40px 48px;
+    width: 100%;
+    max-width: 420px;
+  }
 
-<a class="btn" href="{% url 'dashboard' %}">Update Gold Rate</a>
-<br><br>
+  .panel-wrapper h2 {
+    margin-bottom: 6px;
+  }
 
-<a class="btn" href="{% url 'manual_product_upload' %}">Upload Product (Manual)</a>
-<br><br>
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0 24px;
+  }
 
-<a class="btn" href="{% url 'bulk_product_upload' %}">Upload Products (CSV)</a>
-<br><br>
+  .panel-wrapper .btn {
+    display: flex; /* full width, stacked */
+    width: 100%;
+    margin-bottom: 10px;
+  }
 
-<a class="btn" href="{% url 'staff_orders' %}">View Orders</a>
-<br><br>
+  .panel-wrapper form {
+    width: 100%;
+  }
+</style>
 
-<a class="btn" href="{% url 'staff_products' %}">View Products</a>
-<br><br>
+<div class="panel-wrapper">
+  <h2>Staff Panel</h2>
+  <hr />
 
-<form method="post" action="{% url 'logout' %}" style="display:inline;">
+  <a class="btn" href="{% url 'dashboard' %}">💰 Update Gold Rate</a>
+  <a class="btn" href="{% url 'manual_product_upload' %}"
+    >📦 Upload Product (Manual)</a
+  >
+  <a class="btn" href="{% url 'bulk_product_upload' %}"
+    >📂 Upload Products (CSV)</a
+  >
+  <a class="btn" href="{% url 'staff_orders' %}">🛍️ View Orders</a>
+  <a class="btn" href="{% url 'staff_products' %}">💍 View Products</a>
+
+  <form method="post" action="{% url 'logout' %}">
     {% csrf_token %}
-    <button class="btn logout-btn" type="submit">Logout</button>
-</form>
+    <button class="btn btn-danger" type="submit" style="margin-bottom: 0">
+      🚪 Logout
+    </button>
+  </form>
+</div>

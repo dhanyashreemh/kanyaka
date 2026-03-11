@@ -1,47 +1,55 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Products</title>
-</head>
-<body>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/base.css' %}" />
 
-<h2>Products</h2>
+<div class="page-header">
+  <h2>Products</h2>
+  <div class="btn-group">
+    <a href="{% url 'manual_product_upload' %}" class="btn btn-success"
+      >+ Create Product</a
+    >
+    <form method="post" action="{% url 'staff_panel' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn">← Go Back</button>
+    </form>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+  </div>
+</div>
 
- |
-<form method="post" action="{% url 'staff_panel' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Go Back</button> </form>|
-<form method="post" action="{% url 'logout' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-</form>
-
-<br><br>
-
-<table border="1" cellpadding="8">
-    <tr>
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
         <th>ID</th>
         <th>Title</th>
         <th>Price</th>
         <th>Actions</th>
-    </tr>
-
-    {% for product in products %}
-    <tr>
-        <td>{{ product.id }}</td>
+      </tr>
+    </thead>
+    <tbody>
+      {% for product in products %}
+      <tr>
+        <td><span class="id-badge">{{ product.id }}</span></td>
         <td>{{ product.title }}</td>
-        <td>{{ product.price }}</td>
+        <td class="price">{{ product.price }}</td>
         <td>
-            <a href="{% url 'edit_product' product.id %}">Edit</a> |
-            <a href="{% url 'delete_product' product.id %}">Delete</a>
+          <div class="action-links">
+            <a href="{% url 'edit_product' product.id %}" class="edit-link"
+              >✏️ Edit</a
+            >
+            <a href="{% url 'delete_product' product.id %}" class="delete-link"
+              >🗑️ Delete</a
+            >
+          </div>
         </td>
-    </tr>
-    {% empty %}
-    <tr>
+      </tr>
+      {% empty %}
+      <tr class="empty-row">
         <td colspan="4">No products available</td>
-    </tr>
-    {% endfor %}
-</table>
-
-</body>
-</html>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -11,6 +11,8 @@ from django.http import HttpResponse
 import json
 import tempfile
 from .forms import ProductForm
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 
 
 class CSVUploadForm(forms.Form):
@@ -600,15 +602,41 @@ def sync_shopify_products(request):
 
 @login_required
 def edit_product(request, pk):
-    product = Product.objects.get(pk=pk)
+    product = get_object_or_404(Product, pk=pk)
 
     if request.method == "POST":
-        product.title = request.POST.get("title")
-        product.price = request.POST.get("price")
+        # Basic Info
+        product.title         = request.POST.get("title")
+        product.description   = request.POST.get("description")
+        product.collection    = request.POST.get("collection")
+        product.tags          = request.POST.get("tags")
 
-        update_product_shopify(product)  # 🔥 Update Shopify first
-        product.save()                   # Then save locally
+        # Pricing
+        product.price         = request.POST.get("price")
+        product.compare_price = request.POST.get("compare_price") or None
+        product.unit_price    = request.POST.get("unit_price")    or None
+        product.cost_per_item = request.POST.get("cost_per_item") or None
+        product.charge_tax    = request.POST.get("charge_tax") == "on"
 
+        # Jewelry Details
+        product.jewelry_type  = request.POST.get("jewelry_type")
+        product.metal_type    = request.POST.get("metal_type")
+        product.stone_type    = request.POST.get("stone_type")
+        product.purity        = request.POST.get("purity")
+        product.occasion      = request.POST.get("occasion")
+        product.weight        = request.POST.get("weight") or None
+
+        # Inventory
+        product.sku               = request.POST.get("sku")
+        product.barcode           = request.POST.get("barcode")
+        product.quantity          = request.POST.get("quantity") or 0
+        product.inventory_tracked = request.POST.get("inventory_tracked") == "on"
+        product.sell_out_of_stock = request.POST.get("sell_out_of_stock") == "on"
+
+        update_product_shopify(product)
+        product.save()
+
+        messages.success(request, f'"{product.title}" updated successfully.')
         return redirect("staff_products")
 
     return render(request, "staff/edit_product.html", {"product": product})
