@@ -1,80 +1,65 @@
 body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  background: #f5f4f0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
 }
 
 .login-wrapper {
-    width: 100%;
-    max-width: 400px;
+  width: 100%;
+  max-width: 420px;
 }
 
 .login-card {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    text-align: center;
+  background: #ffffff;
+  border: 1px solid #e4e1d8;
+  border-radius: 10px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+  padding: 48px 40px 40px;
+  text-align: center;
+}
+
+.login-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
 }
 
 .login-card h2 {
-    margin-bottom: 5px;
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  margin-bottom: 6px;
 }
 
 .subtitle {
-    color: #666;
-    margin-bottom: 20px;
-    font-size: 14px;
+  font-size: 13.5px;
+  color: #8c8578;
+  margin-bottom: 28px;
 }
 
-.form-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-label {
-    font-size: 14px;
-    display: block;
-    margin-bottom: 5px;
-}
-
-input {
-    width: 100%;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-}
-
-input:focus {
-    outline: none;
-    border-color: #2a5298;
-}
-
-button {
-    width: 100%;
-    padding: 10px;
-    background: #2a5298;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-button:hover {
-    background: #1e3c72;
+.login-card .field {
+  text-align: left;
+  margin-bottom: 16px;
 }
 
 .error-box {
-    background: #fdecea;
-    color: #c62828;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 15px;
-    font-size: 14px;
+  background: #fff0f0;
+  border: 1px solid #f5c6c6;
+  border-left: 3px solid #c0392b;
+  color: #c0392b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  margin-top: 8px;
 }

@@ -4,11 +4,15 @@
   <head>
     <meta charset="UTF-8" />
     <title>Manual Product Upload</title>
-    <link rel="stylesheet" href="{% static 'css/manualUpload.css' %}" />
+    <!-- Bootstrap loads FIRST so our styles can override it -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <!-- base.css loads SECOND — shared theme variables & components -->
+    <link rel="stylesheet" href="{% static 'css/base.css' %}" />
+    <!-- manualUpload.css loads LAST — page-specific styles only -->
+    <link rel="stylesheet" href="{% static 'css/manualUpload.css' %}" />
   </head>
 
   <body>
@@ -16,7 +20,6 @@
       <h2 class="mb-4">Manual Product Upload</h2>
 
       <!-- NAVIGATION BUTTONS -->
-
       <div class="mb-3">
         <form
           method="post"
@@ -24,62 +27,50 @@
           style="display: inline"
         >
           {% csrf_token %}
-          <button class="btn btn-secondary">Go Back</button>
+          <button class="btn btn-secondary">← Go Back</button>
         </form>
-
         <form method="post" action="{% url 'logout' %}" style="display: inline">
           {% csrf_token %}
-          <button class="btn btn-danger">Logout</button>
+          <button class="btn btn-danger">🚪 Logout</button>
         </form>
       </div>
 
       <!-- MAIN PRODUCT FORM -->
-
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         <!-- PRODUCT INFO -->
-
         <div class="card mb-4">
-          <div class="card-header">Product Info</div>
-
+          <div class="card-header">📝 Product Info</div>
           <div class="card-body">
             <label>Title</label>
             {{ form.title }}
-
             <br /><br />
-
             <label>Description</label>
             {{ form.description }}
           </div>
         </div>
 
         <!-- JEWELRY DETAILS -->
-
         <div class="card mb-4">
-          <div class="card-header">Jewelry Details</div>
-
+          <div class="card-header">💍 Jewelry Details</div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label">Jewelry Type</label>
               {{ form.jewelry_type }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Metal Type</label>
               {{ form.metal_type }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Purity</label>
               {{ form.purity }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Weight (grams)</label>
               {{ form.weight }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Stone Type</label>
               {{ form.stone_type }}
@@ -88,21 +79,17 @@
         </div>
 
         <!-- ORGANIZATION -->
-
         <div class="card mb-4">
-          <div class="card-header">Product Organization</div>
-
+          <div class="card-header">🗂️ Product Organization</div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label">Collection</label>
               {{ form.collection }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Occasion</label>
               {{ form.occasion }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Tags</label>
               {{ form.tags }}
@@ -111,26 +98,21 @@
         </div>
 
         <!-- PRICING -->
-
         <div class="card mb-4">
-          <div class="card-header">Pricing</div>
-
+          <div class="card-header">💰 Pricing</div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label">Price</label>
               {{ form.price }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Compare At Price</label>
               {{ form.compare_price }}
             </div>
-
             <div class="mb-3">
               <label class="form-label">Unit Price</label>
               {{ form.unit_price }}
             </div>
-
             <div class="form-check mb-3">
               {{ form.charge_tax }}
               <label class="form-check-label">Charge Tax</label>
@@ -139,53 +121,42 @@
         </div>
 
         <!-- INVENTORY -->
-
         <div class="card mb-4">
-          <div class="card-header">Inventory</div>
-
+          <div class="card-header">📦 Inventory</div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label">Cost Per Item</label>
               {{ form.cost_per_item }}
             </div>
-
             <div class="form-check mb-3">
               {{ form.inventory_tracked }}
               <label class="form-check-label">Track Inventory</label>
             </div>
-
             <label>Quantity</label>
             {{ form.quantity }}
-
             <br /><br />
-
             <label>SKU</label>
             {{ form.sku }}
-
             <br /><br />
-
             <label>Barcode</label>
             {{ form.barcode }}
-
             <br /><br />
-
             <div class="form-check mb-3">
-              {{ form.charge_tax }}
-              <label class="form-check-label">Charge Tax</label>
+              {{ form.sell_out_of_stock }}
+              <label class="form-check-label"
+                >Continue Selling When Out of Stock</label
+              >
             </div>
           </div>
         </div>
 
         <!-- PRODUCT MEDIA -->
-
         <div class="card mb-4">
-          <div class="card-header">Product Images</div>
-
+          <div class="card-header">🖼️ Product Images</div>
           <div class="card-body">
             <div class="drop-zone" id="dropZone">
               Drag & Drop Images Here or Click to Upload
             </div>
-
             <input
               type="file"
               name="images"
@@ -194,16 +165,13 @@
               accept="image/*"
               hidden
             />
-
             <div id="preview" class="preview mt-3"></div>
           </div>
         </div>
 
         <!-- VARIANTS -->
-
         <div class="card mb-4">
-          <div class="card-header">Product Variants</div>
-
+          <div class="card-header">🔀 Product Variants</div>
           <div class="card-body">
             <div class="row mb-3">
               <div class="col">
@@ -219,7 +187,6 @@
                   placeholder="6,7,8"
                 />
               </div>
-
               <div class="col">
                 <label>Option 2</label>
                 <input
@@ -233,7 +200,6 @@
                   placeholder="Gold,Silver"
                 />
               </div>
-
               <div class="col">
                 <label>Option 3</label>
                 <input
@@ -266,21 +232,17 @@
                   <th>Quantity</th>
                 </tr>
               </thead>
-
               <tbody></tbody>
             </table>
           </div>
         </div>
 
         <input type="hidden" name="variants_data" id="variants_data" />
-
-        <button class="btn btn-success mb-5">Create Product</button>
+        <button class="btn btn-success mb-5">✅ Create Product</button>
       </form>
     </div>
 
     <script>
-      /* VARIANT GENERATOR */
-
       function generateVariants() {
         let values1 = document
           .getElementById("option1_values")
@@ -297,23 +259,18 @@
 
         let tableBody = document.querySelector("#variantTable tbody");
         tableBody.innerHTML = "";
-
         let variants = [];
 
         function addVariant(v1, v2, v3) {
           let label = [v1, v2, v3].filter((v) => v).join(" / ");
-
           let row = document.createElement("tr");
-
           row.innerHTML = `
-<td>${label}</td>
-<td><input class="form-control price"></td>
-<td><input class="form-control sku"></td>
-<td><input class="form-control qty" value="0"></td>
-`;
-
+            <td>${label}</td>
+            <td><input class="form-control price"></td>
+            <td><input class="form-control sku"></td>
+            <td><input class="form-control qty" value="0"></td>
+          `;
           tableBody.appendChild(row);
-
           variants.push({
             option1: v1 || null,
             option2: v2 || null,
@@ -345,48 +302,34 @@
           JSON.stringify(variants);
       }
     </script>
+
     <script>
       let imageFiles = [];
-
       const dropZone = document.getElementById("dropZone");
       const input = document.getElementById("imageInput");
       const preview = document.getElementById("preview");
 
-      /* OPEN FILE PICKER */
-
       dropZone.onclick = () => input.click();
-
-      /* INPUT SELECT */
-
       input.addEventListener("change", (e) => {
         addFiles(e.target.files);
       });
-
-      /* DRAG EVENTS */
-
       dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("dragover");
       });
-
       dropZone.addEventListener("dragleave", () => {
         dropZone.classList.remove("dragover");
       });
-
       dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropZone.classList.remove("dragover");
         addFiles(e.dataTransfer.files);
       });
 
-      /* ADD FILES */
-
       function addFiles(files) {
         for (const file of files) {
           imageFiles.push(file);
-
           const reader = new FileReader();
-
           reader.onload = (e) => {
             const wrapper = document.createElement("div");
             wrapper.className = "image-item";
@@ -398,7 +341,6 @@
             const remove = document.createElement("button");
             remove.innerHTML = "×";
             remove.className = "remove-img";
-
             remove.onclick = () => {
               wrapper.remove();
               imageFiles = imageFiles.filter((f) => f !== file);
@@ -408,29 +350,20 @@
             wrapper.appendChild(img);
             wrapper.appendChild(remove);
             preview.appendChild(wrapper);
-
             enableDrag(wrapper);
           };
-
           reader.readAsDataURL(file);
         }
-
         updateInputFiles();
       }
 
-      /* UPDATE INPUT FILE LIST */
-
       function updateInputFiles() {
         const dt = new DataTransfer();
-
         imageFiles.forEach((file) => {
           dt.items.add(file);
         });
-
         input.files = dt.files;
       }
-
-      /* DRAG REORDER */
 
       let draggedItem = null;
 
@@ -438,20 +371,15 @@
         el.addEventListener("dragstart", () => {
           draggedItem = el;
         });
-
         el.addEventListener("dragover", (e) => {
           e.preventDefault();
         });
-
         el.addEventListener("drop", (e) => {
           e.preventDefault();
-
           if (draggedItem !== el) {
             const nodes = Array.from(preview.children);
-
             const draggedIndex = nodes.indexOf(draggedItem);
             const targetIndex = nodes.indexOf(el);
-
             if (draggedIndex < targetIndex) {
               preview.insertBefore(draggedItem, el.nextSibling);
             } else {
