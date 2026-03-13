@@ -8,6 +8,7 @@ import os
 
 @api_view(['GET'])
 def gold_rate_api(request):
+
     rate = GoldRate.objects.order_by('-updated_at').first()
 
     if not rate:
@@ -16,6 +17,9 @@ def gold_rate_api(request):
     return Response({
         "rate_24k": str(rate.rate_24k),
         "rate_22k": str(rate.rate_22k),
+        "making_charge": str(rate.making_charge_per_gram),
+        "gst": str(rate.gst_percentage),
+        "updated_at": rate.updated_at
     })
 
 

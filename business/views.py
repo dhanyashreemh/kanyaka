@@ -23,13 +23,19 @@ def dashboard(request):
 #Update Rate View
 @login_required
 def update_rate(request):
+
     if request.method == "POST":
-        rate_24k = request.POST["rate_24k"]
-        rate_22k = request.POST["rate_22k"]
+
+        rate_24k = request.POST.get("rate_24k")
+        rate_22k = request.POST.get("rate_22k")
+        making_charge = request.POST.get("making_charge")
+        gst = request.POST.get("gst")
 
         GoldRate.objects.create(
             rate_24k=rate_24k,
-            rate_22k=rate_22k
+            rate_22k=rate_22k,
+            making_charge_per_gram=making_charge,
+            gst_percentage=gst
         )
 
         return redirect("dashboard")
