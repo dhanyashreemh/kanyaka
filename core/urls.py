@@ -5,6 +5,11 @@ from django.contrib.auth import views as auth_views
 from core import settings
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -27,6 +32,10 @@ urlpatterns = [
 
     # Default redirect
     path("", RedirectView.as_view(url="/staff/login/", permanent=False)),
+
+    path('api/token/', TokenObtainPairView.as_view()),        # login → get tokens
+    path('api/token/refresh/', TokenRefreshView.as_view()),   # refresh access token
+    path('api/token/verify/', TokenVerifyView.as_view()),     # verify a token
 ]
 
 if settings.DEBUG:
