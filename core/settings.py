@@ -165,7 +165,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
-SHOPIFY_STORE = "tewgnw-e7.myshopify.com"
+SHOPIFY_STORE = "tewgnw-e7"
 SHOPIFY_WEBHOOK_SECRET = "cbe74e93f85e4baf143474c6893178824f80311ce84b6e19b85bcc489626cdbd"
 
 
@@ -186,12 +186,10 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=2),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'SIGNING_KEY': SECRET_KEY,  # or use a separate key
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
-
-'rest_framework.permissions.IsAuthenticated',
