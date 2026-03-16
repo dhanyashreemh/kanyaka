@@ -4,9 +4,13 @@ from rest_framework.response import Response
 from business.models import GoldRate
 import requests
 import os
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
+
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def gold_rate_api(request):
 
     rate = GoldRate.objects.order_by('-updated_at').first()

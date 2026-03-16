@@ -20,8 +20,21 @@ def dashboard(request):
     rate = GoldRate.objects.order_by('-updated_at').first()
     return render(request, "staff/dashboard.html", {"rate": rate})
 
+def calculate_price(weight, stone, rate22, making, gst):
+
+    gold_value = weight * rate22
+    making_cost = weight * making
+
+    subtotal = gold_value + making_cost + stone
+    tax = subtotal * (gst / 100)
+
+    total = subtotal + tax
+
+    return round(total)
+
 
 #Update Rate View
+
 @login_required
 def update_rate(request):
 
@@ -39,14 +52,11 @@ def update_rate(request):
             gst_percentage=gst
         )
 
-        # Get Shopify products
         products = get_shopify_products()
 
         for product in products:
-
             for variant in product["variants"]:
 
-                # Example values (later fetch from metafields)
                 weight = 10
                 stone = 200
 
@@ -77,16 +87,6 @@ def staff_products(request):
     products = Product.objects.all().order_by("-id")
     return render(request, "staff/products.html", {"products": products})
     
-def calculate_price(weight, stone, rate22, making, gst):
 
-    gold_value = weight * rate22
-    making_cost = weight * making
-
-    subtotal = gold_value + making_cost + stone
-    tax = subtotal * (gst / 100)
-
-    total = subtotal + tax
-
-    return round(total)
     
 
