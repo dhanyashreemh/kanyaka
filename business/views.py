@@ -40,11 +40,17 @@ def update_rate(request):
 
     if request.method == "POST":
 
-        rate_24k = float(request.POST.get("rate_24k"))
-        rate_22k = float(request.POST.get("rate_22k"))
-        making = float(request.POST.get("making_charge"))
-        gst = float(request.POST.get("gst"))
+        try:
+            rate_24k = float(request.POST.get("rate_24k", 0))
+            rate_22k = float(request.POST.get("rate_22k", 0))
+            making = float(request.POST.get("making_charge", 0))
+            gst = float(request.POST.get("gst", 0))
 
+        except (TypeError, ValueError):
+            print("❌ Invalid input")
+            return redirect("dashboard")
+
+        # ✅ Save new rate
         GoldRate.objects.create(
             rate_24k=rate_24k,
             rate_22k=rate_22k,
@@ -52,26 +58,42 @@ def update_rate(request):
             gst_percentage=gst
         )
 
-        products = get_shopify_products()
+        # ✅ Fetch products from DB (BEST PRACTICE)
+        products = Product.objects.all()
 
         for product in products:
-            for variant in product["variants"]:
 
-                weight = 10
-                stone = 200
+            try:
+                weight = float(product.weight or 0)
+                stone = float(getattr(product, "stone_price", 0) or 0)
 
-                price = calculate_price(
-                    weight,
-                    stone,
-                    rate_22k,
-                    making,
-                    gst
-                )
+                if weight <= 0:
+                    print(f"⚠️ Skipping {product.title} (no weight)")
+                    continue
 
+                # 💰 Price Calculation
+                gold_value = weight * rate_22k
+                making_cost = weight * making
+
+                subtotal = gold_value + making_cost + stone
+                tax = subtotal * (gst / 100)
+                total_price = round(subtotal + tax)
+
+                # 🧠 Shopify Variant ID check
+                if not product.shopify_variant_id:
+                    print(f"⚠️ No variant ID for {product.title}")
+                    continue
+
+                # 🚀 Update Shopify price
                 update_product_price(
-                    variant["id"],
-                    price
+                    product.shopify_variant_id,
+                    total_price
                 )
+
+                print(f"✅ Updated {product.title} → ₹{total_price}")
+
+            except Exception as e:
+                print(f"❌ Error updating {product.title}: {str(e)}")
 
         return redirect("dashboard")
 

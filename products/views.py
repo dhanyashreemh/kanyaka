@@ -21,7 +21,7 @@ class CSVUploadForm(forms.Form):
 
 #Get Online Store Publication ID
 def get_online_store_publication_id():
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -60,7 +60,7 @@ def get_online_store_publication_id():
 
 #publishes the product to Online Store.
 def publish_product_to_online_store(product_id):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -87,12 +87,11 @@ def publish_product_to_online_store(product_id):
     }}
     """
 
-#     response = requests.post(url, json={"query": mutation}, headers=headers)
+    response = requests.post(url, json={"query": mutation}, headers=headers)
 
-#     print("Publish response:", response.json())
+    print("Publish response:", response.json())
 
-# SHOPIFY GRAPHQL FUNCTION
-# ----------------------------
+
 # SHOPIFY GRAPHQL FUNCTION
 # ----------------------------
 def create_product_shopify(
@@ -118,7 +117,7 @@ def create_product_shopify(
     sell_out_of_stock=False,
     image_url=None
 ):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -351,6 +350,7 @@ def create_product_shopify(
             "sell_out_of_stock": sell_out_of_stock,
         }
     )
+    publish_product_to_online_store(product_id)
 
     return product_data
 # ----------------------------
@@ -440,7 +440,7 @@ def bulk_product_upload(request):
             # -----------------------------
             # 2️⃣ Create Staged Upload
             # -----------------------------
-            graphql_url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+            graphql_url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
             headers = {
                 "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -559,9 +559,15 @@ def staff_products(request):
     return render(request, "staff/products.html", {"products": products})
 
 
+import requests
+from django.conf import settings
+from django.shortcuts import redirect
+from products.models import Product
+
+
 def sync_shopify_products(request):
 
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/products.json?limit=250"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/products.json?limit=250"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
@@ -571,24 +577,51 @@ def sync_shopify_products(request):
         response = requests.get(url, headers=headers)
         data = response.json()
 
+        print("PRODUCT COUNT:", len(data.get("products", [])))
+
         for product in data.get("products", []):
 
-            shopify_product_id = f"gid://shopify/Product/{product['id']}"
+            for variant in product.get("variants", []):
 
-            price = 0
-            if product.get("variants"):
-                price = product["variants"][0]["price"]
+                Product.objects.update_or_create(
+                    shopify_variant_id=variant["id"],
+                    defaults={
 
-            Product.objects.update_or_create(
-                shopify_product_id=shopify_product_id,
-                defaults={
-                    "title": product["title"],
-                    "price": price,
-                    "raw_data": product,
-                }
-            )
+                        # 🔑 IDs
+                        "shopify_product_id": f"gid://shopify/Product/{product['id']}",
 
-        # Shopify pagination
+                        # 🧾 Basic Info
+                        "title": product.get("title"),
+                        "description": product.get("body_html"),
+
+                        # 💰 Pricing
+                        "price": float(variant.get("price", 0)),
+                        "compare_price": variant.get("compare_at_price"),
+
+                        # 🏷️ Classification
+                        "collection": product.get("product_type") or "General",
+                        "tags": product.get("tags"),
+
+                        # 💎 Jewelry fields (optional mapping)
+                        "jewelry_type": product.get("product_type"),
+                        "metal_type": None,
+                        "stone_type": None,
+
+                        # ⚖️ Weight
+                        "weight": variant.get("weight") or 0,
+
+                        # 📦 Inventory
+                        "sku": variant.get("sku"),
+                        "barcode": variant.get("barcode"),
+                        "quantity": variant.get("inventory_quantity", 0),
+
+                        # 🔧 Raw backup (VERY IMPORTANT)
+                        "raw_data": product,
+                    }
+                )
+
+                print(f"✅ Synced: {product['title']} (Variant: {variant['id']})")
+
         link_header = response.headers.get("Link")
 
         if link_header and 'rel="next"' in link_header:
@@ -596,9 +629,9 @@ def sync_shopify_products(request):
         else:
             url = None
 
+    print("🚀 Shopify sync completed")
+
     return redirect("staff_products")
-
-
 
 @login_required
 def edit_product(request, pk):
@@ -656,7 +689,7 @@ def delete_product(request, pk):
 
 
 def update_product_shopify(product):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -684,10 +717,10 @@ def update_product_shopify(product):
     mutation {{
       productVariantsBulkUpdate(
         productId: "{product_id}",
-        variants: [{{
-          id: product.shopify_variant_id,
-          price: "{product.price}"
-        }}]
+        variants: [{
+            id: "{product.shopify_variant_id}",
+            price: "{product.price}"
+        }]
       ) {{
         userErrors {{
           message
@@ -699,7 +732,7 @@ def update_product_shopify(product):
     requests.post(url, json={"query": price_mutation}, headers=headers)
 
 def delete_product_shopify(product):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -755,7 +788,7 @@ def generate_jsonl_from_csv(file):
 #Create Staged Upload
 
 def create_staged_upload():
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -802,7 +835,7 @@ def upload_jsonl_to_shopify(target, file_path):
 
 #Run Bulk Operation
 def run_bulk_operation(staged_path):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -849,7 +882,7 @@ def run_bulk_operation(staged_path):
 
 #Check Bulk Status
 def check_bulk_status():
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2025-10/graphql.json"
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
 
     headers = {
         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
@@ -923,11 +956,18 @@ def shopify_product_webhook(request):
         if data.get("variants"):
             price = data["variants"][0]["price"]
 
+        variant = data["variants"][0] if data.get("variants") else {}
+
         Product.objects.update_or_create(
             shopify_product_id=shopify_product_id,
             defaults={
-                "title": data["title"],
-                "price": price,
+                "title": data.get("title"),
+                "price": variant.get("price", 0),
+                "sku": variant.get("sku"),
+                "barcode": variant.get("barcode"),
+                "weight": variant.get("weight"),
+                "quantity": variant.get("inventory_quantity", 0),
+                "raw_data": data
             }
         )
 

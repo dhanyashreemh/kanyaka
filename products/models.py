@@ -35,6 +35,7 @@ class Product(models.Model):
     charge_tax = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    raw_data = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.title

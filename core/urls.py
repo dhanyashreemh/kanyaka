@@ -11,6 +11,8 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+from products.views import sync_shopify_products
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -36,6 +38,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view()),        # login → get tokens
     path('api/token/refresh/', TokenRefreshView.as_view()),   # refresh access token
     path('api/token/verify/', TokenVerifyView.as_view()),     # verify a token
+    path("sync-shopify-products/", sync_shopify_products, name="sync_shopify_products"),
 ]
 
 if settings.DEBUG:
