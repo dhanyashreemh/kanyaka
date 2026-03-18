@@ -951,36 +951,75 @@ def download_bulk_result(result_url):
 @csrf_exempt
 def shopify_product_webhook(request):
 
-    if request.method == "POST":
+    try:
+        topic = request.headers.get("X-Shopify-Topic")
         data = json.loads(request.body)
 
-        for variant in data.get("variants", []):
+        print("🔥 WEBHOOK:", topic)
 
-            Product.objects.update_or_create(
-                shopify_variant_id=variant["id"],
-                defaults={
-                    "shopify_product_id": f"gid://shopify/Product/{data['id']}",
-                    "title": data.get("title"),
-                    "description": data.get("body_html"),
+        # 🧠 ADD THIS BLOCK HERE 👇
+        if topic == "products/create":
+            print("🟢 CREATE")
 
-                    "price": float(variant.get("price", 0)),
-                    "compare_price": float(variant.get("compare_at_price") or 0),
+        elif topic == "products/update":
+            print("🟡 UPDATE")
 
-                    "collection": data.get("product_type"),
-                    "tags": data.get("tags"),
+        elif topic == "products/delete":
+            print("🔴 DELETE")
 
-                    "sku": variant.get("sku"),
-                    "barcode": variant.get("barcode"),
-                    "weight": variant.get("weight"),
-                    "quantity": variant.get("inventory_quantity", 0),
+        # 🟢 CREATE + UPDATE LOGIC
+        if topic in ["products/create", "products/update"]:
 
-                    "raw_data": data
-                }
-            )
+            for variant in data.get("variants", []):
+
+                variant_id = variant.get("id")
+
+                if not variant_id:
+                    print("❌ Missing variant ID")
+                    continue
+
+                print("👉 Variant:", variant_id)
+
+                Product.objects.update_or_create(
+                    shopify_variant_id=variant_id,
+                    defaults={
+                        "shopify_product_id": f"gid://shopify/Product/{data['id']}",
+                        "title": data.get("title"),
+                        "description": data.get("body_html"),
+
+                        "price": float(variant.get("price", 0)),
+                        "compare_price": float(variant.get("compare_at_price") or 0),
+
+                        "collection": data.get("product_type"),
+                        "tags": data.get("tags"),
+
+                        "sku": variant.get("sku"),
+                        "barcode": variant.get("barcode"),
+                        "weight": variant.get("weight"),
+                        "quantity": variant.get("inventory_quantity", 0),
+
+                        "raw_data": data
+                    }
+                )
+
+            print("✅ Created/Updated")
+
+        # 🔴 DELETE LOGIC
+        elif topic == "products/delete":
+
+            product_id = data.get("id")
+
+            Product.objects.filter(
+                shopify_product_id__contains=str(product_id)
+            ).delete()
+
+            print("🗑️ Deleted")
 
         return HttpResponse(status=200)
 
-    return HttpResponse(status=405)
+    except Exception as e:
+        print("❌ WEBHOOK ERROR:", str(e))
+        return HttpResponse(status=500)
 
 
 
