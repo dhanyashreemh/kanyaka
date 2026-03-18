@@ -45,20 +45,22 @@ def update_rate(request):
             rate_22k = float(request.POST.get("rate_22k", 0))
             making = float(request.POST.get("making_charge", 0))
             gst = float(request.POST.get("gst", 0))
+            making_type = request.POST.get("making_type", "percent")
 
         except (TypeError, ValueError):
             print("❌ Invalid input")
             return redirect("dashboard")
 
         # ✅ Save new rate
-        GoldRate.objects.create(
+        rate_obj = GoldRate.objects.create(
             rate_24k=rate_24k,
             rate_22k=rate_22k,
-            making_charge_per_gram=making,
-            gst_percentage=gst
+            making_charge_per_gram=making,   # ✅ correct
+            gst_percentage=gst               # ✅ correct
         )
+        rate_obj.making_type = making_type
+        rate_obj.save()
 
-        # ✅ Fetch products from DB (BEST PRACTICE)
         products = Product.objects.all()
 
         for product in products:
@@ -71,24 +73,30 @@ def update_rate(request):
                     print(f"⚠️ Skipping {product.title} (no weight)")
                     continue
 
-                # 💰 Price Calculation
-                gold_value = weight * rate_22k
-                making_cost = weight * making
+                # 💰 Base price
+                base_price = weight * rate_obj.rate_22k
 
-                subtotal = gold_value + making_cost + stone
-                tax = subtotal * (gst / 100)
-                total_price = round(subtotal + tax)
+                # 🔥 SAME LOGIC AS MANUAL UPLOAD
+                if rate_obj.making_type == "percent":
+                    making_cost = base_price * (rate_obj.making_charge_per_gram / 100)
+                else:
+                    making_cost = weight * rate_obj.making_charge_per_gram
 
-                # 🧠 Shopify Variant ID check
-                if not product.shopify_variant_id:
-                    print(f"⚠️ No variant ID for {product.title}")
-                    continue
+                subtotal = base_price + making_cost + stone
+                gst_amount = subtotal * (rate_obj.gst_percentage / 100)
 
-                # 🚀 Update Shopify price
-                update_product_price(
-                    product.shopify_variant_id,
-                    total_price
-                )
+                total_price = round(subtotal + gst_amount, 2)
+
+                # ✅ Save to DB
+                product.price = total_price
+                product.save()
+
+                # 🚀 Update Shopify
+                if product.shopify_variant_id:
+                    update_product_price(
+                        product.shopify_variant_id,
+                        total_price
+                    )
 
                 print(f"✅ Updated {product.title} → ₹{total_price}")
 

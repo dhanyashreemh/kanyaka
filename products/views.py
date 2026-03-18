@@ -324,32 +324,7 @@ def create_product_shopify(
     # -------------------------
     # Step 5: Save to Database
     # -------------------------
-    Product.objects.update_or_create(
-        shopify_product_id=product_id,
-        defaults={
-            "shopify_variant_id": variant_id,
-            "title": title,
-            "description": description,
-            "price": price,
-            "compare_price": compare_price,
-            "collection": collection,
-            "tags": tags,
-            "jewelry_type": jewelry_type,
-            "metal_type": metal_type,
-            "stone_type": stone_type,
-            "purity": purity,
-            "occasion": occasion,
-            "weight": weight,
-            "quantity": quantity,
-            "sku": sku,
-            "barcode": barcode,
-            "cost_per_item": cost_per_item,
-            "unit_price": unit_price,
-            "charge_tax": charge_tax,
-            "inventory_tracked": inventory_tracked,
-            "sell_out_of_stock": sell_out_of_stock,
-        }
-    )
+   
     publish_product_to_online_store(product_id)
 
     return product_data
@@ -361,33 +336,61 @@ def create_product_shopify(
 def manual_product_upload(request):
 
     if request.method == "POST":
-        form = ProductForm(request.POST)
+        form = ProductForm(request.POST, request.FILES)
 
         if form.is_valid():
-            data = form.cleaned_data
+            product = form.save(commit=False)
 
-            create_product_shopify(
-                title=data["title"],
-                description=data["description"],
-                price=data["price"],
-                compare_price=data.get("compare_price"),
-                collection=data.get("collection"),
-                jewelry_type=data.get("jewelry_type"),
-                metal_type=data.get("metal_type"),
-                stone_type=data.get("stone_type"),
-                purity=data.get("purity"),
-                occasion=data.get("occasion"),
-                weight=data.get("weight"),
-                quantity=data.get("quantity"),
-                sku=data.get("sku"),
-                tags=data.get("tags"),
-                barcode=data.get("barcode"),
-                cost_per_item=data.get("cost_per_item"),
-                unit_price=data.get("unit_price"),
-                charge_tax=data.get("charge_tax"),
-                inventory_tracked=data.get("inventory_tracked"),
-                sell_out_of_stock=data.get("sell_out_of_stock"),
+            from .models import GoldRate
+            rate_obj = GoldRate.objects.last()
+
+            if rate_obj and product.weight is not None:
+
+                weight = float(product.weight or 0)
+                base_price = weight * rate_obj.rate_22k
+
+                making = rate_obj.making_charge
+
+                # ✅ Dynamic making logic
+                if rate_obj.making_type == "percent":
+                    making_cost = base_price * (making / 100)
+                else:
+                    making_cost = weight * making
+
+                subtotal = base_price + making_cost
+                gst_amount = subtotal * (rate_obj.gst / 100)
+
+                product.price = round(subtotal + gst_amount, 2)
+
+            # 🔥 Shopify call (FIXED comma issue)
+            shopify_data = create_product_shopify(
+                title=product.title,
+                description=product.description,
+                price=product.price,
+                compare_price=product.compare_price,
+                collection=product.collection,
+                jewelry_type=product.jewelry_type,
+                metal_type=product.metal_type,
+                stone_type=product.stone_type,
+                purity=product.purity,
+                occasion=product.occasion,
+                weight=float(product.weight or 0),  # ✅ fixed
+                quantity=product.quantity,
+                sku=product.sku,
+                tags=product.tags,
+                barcode=product.barcode,
+                cost_per_item=product.cost_per_item,
+                unit_price=product.unit_price,
+                charge_tax=product.charge_tax,
+                inventory_tracked=product.inventory_tracked,
+                sell_out_of_stock=product.sell_out_of_stock,
             )
+
+            # ✅ Save Shopify IDs
+            product.shopify_product_id = shopify_data["product_id"]
+            product.shopify_variant_id = shopify_data["variant_id"]
+
+            product.save()
 
             return redirect("staff_products")
 
@@ -395,7 +398,6 @@ def manual_product_upload(request):
         form = ProductForm()
 
     return render(request, "products/manual_upload.html", {"form": form})
-
 # ----------------------------
 # BULK CSV UPLOAD
 # ----------------------------
@@ -596,7 +598,7 @@ def sync_shopify_products(request):
 
                         # 💰 Pricing
                         "price": float(variant.get("price", 0)),
-                        "compare_price": variant.get("compare_at_price"),
+                        "compare_price": float(variant.get("compare_at_price") or 0),
 
                         # 🏷️ Classification
                         "collection": product.get("product_type") or "General",
@@ -698,6 +700,10 @@ def update_product_shopify(product):
 
     product_id = product.shopify_product_id
 
+    # 🔧 Ensure price is valid
+    price = float(product.price or 0)
+
+    # Update title
     mutation = f"""
     mutation {{
       productUpdate(input: {{
@@ -710,17 +716,17 @@ def update_product_shopify(product):
       }}
     }}
     """
-
     requests.post(url, json={"query": mutation}, headers=headers)
 
+    # Update price
     price_mutation = f"""
     mutation {{
       productVariantsBulkUpdate(
         productId: "{product_id}",
-        variants: [{
+        variants: [{{
             id: "{product.shopify_variant_id}",
-            price: "{product.price}"
-        }]
+            price: "{price}"
+        }}]
       ) {{
         userErrors {{
           message
@@ -728,7 +734,6 @@ def update_product_shopify(product):
       }}
     }}
     """
-
     requests.post(url, json={"query": price_mutation}, headers=headers)
 
 def delete_product_shopify(product):
@@ -947,29 +952,31 @@ def download_bulk_result(result_url):
 def shopify_product_webhook(request):
 
     if request.method == "POST":
-
         data = json.loads(request.body)
 
-        shopify_product_id = f"gid://shopify/Product/{data['id']}"
+        for variant in data.get("variants", []):
 
-        price = 0
-        if data.get("variants"):
-            price = data["variants"][0]["price"]
+            Product.objects.update_or_create(
+                shopify_variant_id=variant["id"],
+                defaults={
+                    "shopify_product_id": f"gid://shopify/Product/{data['id']}",
+                    "title": data.get("title"),
+                    "description": data.get("body_html"),
 
-        variant = data["variants"][0] if data.get("variants") else {}
+                    "price": float(variant.get("price", 0)),
+                    "compare_price": float(variant.get("compare_at_price") or 0),
 
-        Product.objects.update_or_create(
-            shopify_product_id=shopify_product_id,
-            defaults={
-                "title": data.get("title"),
-                "price": variant.get("price", 0),
-                "sku": variant.get("sku"),
-                "barcode": variant.get("barcode"),
-                "weight": variant.get("weight"),
-                "quantity": variant.get("inventory_quantity", 0),
-                "raw_data": data
-            }
-        )
+                    "collection": data.get("product_type"),
+                    "tags": data.get("tags"),
+
+                    "sku": variant.get("sku"),
+                    "barcode": variant.get("barcode"),
+                    "weight": variant.get("weight"),
+                    "quantity": variant.get("inventory_quantity", 0),
+
+                    "raw_data": data
+                }
+            )
 
         return HttpResponse(status=200)
 
