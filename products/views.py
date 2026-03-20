@@ -949,6 +949,7 @@ def download_bulk_result(result_url):
 
 #Receives Shopify webhook↓Extracts product data !Updates Django DB
 @csrf_exempt
+@csrf_exempt
 def shopify_product_webhook(request):
 
     try:
@@ -957,7 +958,6 @@ def shopify_product_webhook(request):
 
         print("🔥 WEBHOOK:", topic)
 
-        # 🧠 ADD THIS BLOCK HERE 👇
         if topic == "products/create":
             print("🟢 CREATE")
 
@@ -967,8 +967,14 @@ def shopify_product_webhook(request):
         elif topic == "products/delete":
             print("🔴 DELETE")
 
-        # 🟢 CREATE + UPDATE LOGIC
+        # 🟢 CREATE + UPDATE
         if topic in ["products/create", "products/update"]:
+
+            # 🔥 Fetch metafields ONCE per product
+            metafields = get_product_metafields(data["id"])
+            gold_weight = extract_gold_weight(metafields)
+
+            print("🔥 META WEIGHT:", gold_weight)
 
             for variant in data.get("variants", []):
 
@@ -980,10 +986,14 @@ def shopify_product_webhook(request):
 
                 print("👉 Variant:", variant_id)
 
+                # 🔥 fallback logic (smart)
+                final_weight = gold_weight or variant.get("weight") or 0
+
                 Product.objects.update_or_create(
                     shopify_variant_id=variant_id,
                     defaults={
                         "shopify_product_id": f"gid://shopify/Product/{data['id']}",
+
                         "title": data.get("title"),
                         "description": data.get("body_html"),
 
@@ -995,7 +1005,10 @@ def shopify_product_webhook(request):
 
                         "sku": variant.get("sku"),
                         "barcode": variant.get("barcode"),
-                        "weight": variant.get("weight"),
+
+                        # 🔥 FIXED WEIGHT
+                        "weight": final_weight,
+
                         "quantity": variant.get("inventory_quantity", 0),
 
                         "raw_data": data
@@ -1004,7 +1017,7 @@ def shopify_product_webhook(request):
 
             print("✅ Created/Updated")
 
-        # 🔴 DELETE LOGIC
+        # 🔴 DELETE
         elif topic == "products/delete":
 
             product_id = data.get("id")
@@ -1020,6 +1033,29 @@ def shopify_product_webhook(request):
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=500)
+
+#helper to fetch metafields
+def get_product_metafields(product_id):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/products/{product_id}/metafields.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
+    }
+
+    res = requests.get(url, headers=headers)
+    return res.json().get("metafields", [])
+
+
+
+def extract_gold_weight(metafields):
+    for mf in metafields:
+        # adjust if namespace exists (recommended)
+        if mf.get("key") in ["gold_weight", "Gold Weight"]:
+            try:
+                return float(mf.get("value", 0))
+            except:
+                return 0
+    return 0
 
 
 
