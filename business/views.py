@@ -35,6 +35,55 @@ def calculate_price(weight, stone, rate22, making, gst):
 
 #Update Rate View
 
+from threading import Thread
+
+# ----------------------------
+# 🔥 BACKGROUND PRICE UPDATE
+# ----------------------------
+def update_all_products(rate_obj):
+
+    products = Product.objects.all()
+
+    for product in products:
+        try:
+            weight = float(product.weight or 0)
+            stone = float(getattr(product, "stone_price", 0) or 0)
+
+            if weight <= 0:
+                print(f"⚠️ Skipping {product.title} (no weight)")
+                continue
+
+            # 💰 Base price
+            base_price = weight * rate_obj.rate_22k
+
+            # 🔥 Making logic
+            if rate_obj.making_type == "percent":
+                making_cost = base_price * (rate_obj.making_charge_per_gram / 100)
+            else:
+                making_cost = weight * rate_obj.making_charge_per_gram
+
+            subtotal = base_price + making_cost + stone
+            gst_amount = subtotal * (rate_obj.gst_percentage / 100)
+
+            total_price = round(subtotal + gst_amount, 2)
+
+            # ✅ Save locally
+            product.price = total_price
+            product.save()
+
+            # 🚀 Update Shopify
+            if product.shopify_variant_id:
+                update_product_price(product.shopify_variant_id, total_price)
+
+            print(f"✅ Updated {product.title} → ₹{total_price}")
+
+        except Exception as e:
+            print(f"❌ Error updating {product.title}: {str(e)}")
+
+
+# ----------------------------
+# 🔥 UPDATE RATE VIEW (OPTIMIZED)
+# ----------------------------
 @login_required
 def update_rate(request):
 
@@ -51,57 +100,20 @@ def update_rate(request):
             print("❌ Invalid input")
             return redirect("dashboard")
 
-        # ✅ Save new rate
+        # ✅ Save rate
         rate_obj = GoldRate.objects.create(
             rate_24k=rate_24k,
             rate_22k=rate_22k,
-            making_charge_per_gram=making,   # ✅ correct
-            gst_percentage=gst               # ✅ correct
+            making_charge_per_gram=making,
+            gst_percentage=gst
         )
         rate_obj.making_type = making_type
         rate_obj.save()
 
-        products = Product.objects.all()
+        # 🚀 RUN IN BACKGROUND (THIS IS THE UPGRADE)
+        Thread(target=update_all_products, args=(rate_obj,)).start()
 
-        for product in products:
-
-            try:
-                weight = float(product.weight or 0)
-                stone = float(getattr(product, "stone_price", 0) or 0)
-
-                if weight <= 0:
-                    print(f"⚠️ Skipping {product.title} (no weight)")
-                    continue
-
-                # 💰 Base price
-                base_price = weight * rate_obj.rate_22k
-
-                # 🔥 SAME LOGIC AS MANUAL UPLOAD
-                if rate_obj.making_type == "percent":
-                    making_cost = base_price * (rate_obj.making_charge_per_gram / 100)
-                else:
-                    making_cost = weight * rate_obj.making_charge_per_gram
-
-                subtotal = base_price + making_cost + stone
-                gst_amount = subtotal * (rate_obj.gst_percentage / 100)
-
-                total_price = round(subtotal + gst_amount, 2)
-
-                # ✅ Save to DB
-                product.price = total_price
-                product.save()
-
-                # 🚀 Update Shopify
-                if product.shopify_variant_id:
-                    update_product_price(
-                        product.shopify_variant_id,
-                        total_price
-                    )
-
-                print(f"✅ Updated {product.title} → ₹{total_price}")
-
-            except Exception as e:
-                print(f"❌ Error updating {product.title}: {str(e)}")
+        print("🚀 Background price update started")
 
         return redirect("dashboard")
 
