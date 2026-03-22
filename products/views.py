@@ -699,11 +699,19 @@ def update_product_shopify(product):
     }
 
     product_id = product.shopify_product_id
+    variant_id = product.shopify_variant_id
 
-    # 🔧 Ensure price is valid
     price = float(product.price or 0)
+    weight = float(product.weight or 0)
 
-    # Update title
+    # 🔥 ADD IT HERE (VERY IMPORTANT)
+    if not weight:
+        print(f"❌ No weight → skipping Shopify update for {product.title}")
+        return
+
+    # -------------------------
+    # 1️⃣ Update title
+    # -------------------------
     mutation = f"""
     mutation {{
       productUpdate(input: {{
@@ -718,14 +726,24 @@ def update_product_shopify(product):
     """
     requests.post(url, json={"query": mutation}, headers=headers)
 
-    # Update price
-    price_mutation = f"""
+    # -------------------------
+    # 2️⃣ Update price + weight
+    # -------------------------
+    variant_mutation = f"""
     mutation {{
       productVariantsBulkUpdate(
         productId: "{product_id}",
         variants: [{{
-            id: "{product.shopify_variant_id}",
-            price: "{price}"
+            id: "{variant_id}",
+            price: "{price}",
+            inventoryItem: {{
+              measurement: {{
+                weight: {{
+                  value: {weight},
+                  unit: GRAMS
+                }}
+              }}
+            }}
         }}]
       ) {{
         userErrors {{
@@ -734,7 +752,27 @@ def update_product_shopify(product):
       }}
     }}
     """
-    requests.post(url, json={"query": price_mutation}, headers=headers)
+    requests.post(url, json={"query": variant_mutation}, headers=headers)
+
+    # -------------------------
+    # 3️⃣ Update metafield
+    # -------------------------
+    metafield_mutation = f"""
+    mutation {{
+      metafieldsSet(metafields: [{{
+        ownerId: "{product_id}",
+        namespace: "custom",
+        key: "gold_weight",
+        type: "number_decimal",
+        value: "{weight}"
+      }}]) {{
+        userErrors {{
+          message
+        }}
+      }}
+    }}
+    """
+    requests.post(url, json={"query": metafield_mutation}, headers=headers)
 
 def delete_product_shopify(product):
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
@@ -987,7 +1025,10 @@ def shopify_product_webhook(request):
                 print("👉 Variant:", variant_id)
 
                 # 🔥 fallback logic (smart)
-                final_weight = gold_weight or variant.get("weight") or 0
+                final_weight = gold_weight 
+                if not gold_weight:
+                  print(f"❌ Missing gold weight for {data.get('title')}")
+                  continue
 
                 Product.objects.update_or_create(
                     shopify_variant_id=variant_id,
