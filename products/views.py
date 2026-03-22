@@ -1,7 +1,7 @@
 import requests
 import csv
 import io
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django import forms
@@ -11,7 +11,6 @@ from django.http import HttpResponse
 import json
 import tempfile
 from .forms import ProductForm
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 
 
@@ -561,9 +560,8 @@ def staff_products(request):
     return render(request, "staff/products.html", {"products": products})
 
 
-import requests
+
 from django.conf import settings
-from django.shortcuts import redirect
 from products.models import Product
 
 
@@ -701,34 +699,33 @@ def update_product_shopify(product):
     product_id = product.shopify_product_id
     variant_id = product.shopify_variant_id
 
+    if not product_id or not variant_id:
+        print(f"❌ Missing Shopify IDs for {product.title}")
+        return
+
     price = float(product.price or 0)
     weight = float(product.weight or 0)
 
-    # 🔥 ADD IT HERE (VERY IMPORTANT)
     if not weight:
-        print(f"❌ No weight → skipping Shopify update for {product.title}")
-        return
+      print(f"❌ Missing weight → skipping {product.title}")
+      return
 
-    # -------------------------
-    # 1️⃣ Update title
-    # -------------------------
+    title = str(product.title)
+
+    # 1️⃣ Title update
     mutation = f"""
     mutation {{
       productUpdate(input: {{
         id: "{product_id}",
-        title: "{product.title}"
+        title: "{title}"
       }}) {{
-        userErrors {{
-          message
-        }}
+        userErrors {{ message }}
       }}
     }}
     """
-    requests.post(url, json={"query": mutation}, headers=headers)
+    print("TITLE:", requests.post(url, json={"query": mutation}, headers=headers).json())
 
-    # -------------------------
-    # 2️⃣ Update price + weight
-    # -------------------------
+    # 2️⃣ Price + weight
     variant_mutation = f"""
     mutation {{
       productVariantsBulkUpdate(
@@ -746,33 +743,85 @@ def update_product_shopify(product):
             }}
         }}]
       ) {{
-        userErrors {{
-          message
-        }}
+        userErrors {{ message }}
       }}
     }}
     """
-    requests.post(url, json={"query": variant_mutation}, headers=headers)
+    print("VARIANT:", requests.post(url, json={"query": variant_mutation}, headers=headers).json())
 
-    # -------------------------
-    # 3️⃣ Update metafield
-    # -------------------------
-    metafield_mutation = f"""
+    update_product_metafields(product)
+
+
+
+def update_product_metafields(product):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    mutation = f"""
     mutation {{
-      metafieldsSet(metafields: [{{
-        ownerId: "{product_id}",
-        namespace: "custom",
-        key: "gold_weight",
-        type: "number_decimal",
-        value: "{weight}"
-      }}]) {{
+      metafieldsSet(metafields: [
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "gold_weight",
+          type: "number_decimal",
+          value: "{product.weight or 0}"
+        }},
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "gold_purity",
+          type: "single_line_text_field",
+          value: "{product.purity or ''}"
+        }},
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "stone_type",
+          type: "single_line_text_field",
+          value: "{product.stone_type or ''}"
+        }},
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "making_charge",
+          type: "number_decimal",
+          value: "{product.cost_per_item or 0}"
+        }},
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "size",
+          type: "single_line_text_field",
+          value: "{product.collection or ''}"
+        }},
+
+        {{
+          ownerId: "{product.shopify_product_id}",
+          namespace: "custom",
+          key: "delivery_time",
+          type: "single_line_text_field",
+          value: "5-7 days"
+        }}
+
+      ]) {{
         userErrors {{
           message
         }}
       }}
     }}
     """
-    requests.post(url, json={"query": metafield_mutation}, headers=headers)
+
+    requests.post(url, json={"query": mutation}, headers=headers)
 
 def delete_product_shopify(product):
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
@@ -800,9 +849,6 @@ def delete_product_shopify(product):
     requests.post(url, json={"query": mutation}, headers=headers)
 
 #Generate JSONL From CSV
-
-import json
-import tempfile
 
 def generate_jsonl_from_csv(file):
     decoded_file = file.read().decode("utf-8")
@@ -987,9 +1033,7 @@ def download_bulk_result(result_url):
 
 #Receives Shopify webhook↓Extracts product data !Updates Django DB
 @csrf_exempt
-@csrf_exempt
 def shopify_product_webhook(request):
-
     try:
         topic = request.headers.get("X-Shopify-Topic")
         data = json.loads(request.body)
@@ -1005,14 +1049,10 @@ def shopify_product_webhook(request):
         elif topic == "products/delete":
             print("🔴 DELETE")
 
+        # =========================
         # 🟢 CREATE + UPDATE
+        # =========================
         if topic in ["products/create", "products/update"]:
-
-            # 🔥 Fetch metafields ONCE per product
-            metafields = get_product_metafields(data["id"])
-            gold_weight = extract_gold_weight(metafields)
-
-            print("🔥 META WEIGHT:", gold_weight)
 
             for variant in data.get("variants", []):
 
@@ -1024,79 +1064,118 @@ def shopify_product_webhook(request):
 
                 print("👉 Variant:", variant_id)
 
-                # 🔥 fallback logic (smart)
-                final_weight = gold_weight 
-                if not gold_weight:
-                  print(f"❌ Missing gold weight for {data.get('title')}")
-                  continue
+                try:
+                    Product.objects.update_or_create(
+                        shopify_variant_id=variant_id,
+                        defaults={
 
-                Product.objects.update_or_create(
-                    shopify_variant_id=variant_id,
-                    defaults={
-                        "shopify_product_id": f"gid://shopify/Product/{data['id']}",
+                            # 🔑 IDs
+                            "shopify_product_id": f"gid://shopify/Product/{data['id']}",
 
-                        "title": data.get("title"),
-                        "description": data.get("body_html"),
+                            # 🧾 Basic Info
+                            "title": data.get("title"),
+                            "description": data.get("body_html"),
 
-                        "price": float(variant.get("price", 0)),
-                        "compare_price": float(variant.get("compare_at_price") or 0),
+                            # 💰 Pricing
+                            "price": float(variant.get("price") or 0),
+                            "compare_price": float(variant.get("compare_at_price") or 0),
 
-                        "collection": data.get("product_type"),
-                        "tags": data.get("tags"),
+                            # 🏷️ Classification
+                            "collection": data.get("product_type"),
+                            "tags": data.get("tags"),
 
-                        "sku": variant.get("sku"),
-                        "barcode": variant.get("barcode"),
+                            # 📦 Inventory
+                            "sku": variant.get("sku"),
+                            "barcode": variant.get("barcode"),
+                            "quantity": variant.get("inventory_quantity") or 0,
 
-                        # 🔥 FIXED WEIGHT
-                        "weight": final_weight,
+                            # ❌ NO weight here (DB is master)
 
-                        "quantity": variant.get("inventory_quantity", 0),
+                            # 🔧 Raw backup
+                            "raw_data": data
+                        }
+                    )
 
-                        "raw_data": data
-                    }
-                )
+                except Exception as e:
+                    print(f"❌ Error saving variant {variant_id}: {str(e)}")
 
-            print("✅ Created/Updated")
+            print("✅ Synced (DB remains master for weight)")
 
+        # =========================
         # 🔴 DELETE
+        # =========================
         elif topic == "products/delete":
 
             product_id = data.get("id")
 
-            Product.objects.filter(
+            deleted_count, _ = Product.objects.filter(
                 shopify_product_id__contains=str(product_id)
             ).delete()
 
-            print("🗑️ Deleted")
+            print(f"🗑️ Deleted {deleted_count} records")
 
         return HttpResponse(status=200)
 
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=500)
-
+    
+    
 #helper to fetch metafields
-def get_product_metafields(product_id):
-    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/products/{product_id}/metafields.json"
+# def get_product_metafields(product_id):
+#     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/products/{product_id}/metafields.json"
 
-    headers = {
-        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
-    }
+#     headers = {
+#         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
+#     }
 
-    res = requests.get(url, headers=headers)
-    return res.json().get("metafields", [])
+#     res = requests.get(url, headers=headers)
+#     return res.json().get("metafields", [])
 
 
 
-def extract_gold_weight(metafields):
-    for mf in metafields:
-        # adjust if namespace exists (recommended)
-        if mf.get("key") in ["gold_weight", "Gold Weight"]:
-            try:
-                return float(mf.get("value", 0))
-            except:
-                return 0
-    return 0
+# def extract_gold_weight(metafields):
+#     for mf in metafields:
+#         # adjust if namespace exists (recommended)
+#         if mf.get("key") in ["gold_weight", "Gold Weight"]:
+#             try:
+#                 return float(mf.get("value", 0))
+#             except:
+#                 return 0
+#     return 0
+
+
+
+#CREATE METAFIELD FUNCTION
+# def update_gold_weight_metafield(product_id, weight):
+#     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
+
+#     headers = {
+#         "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+#         "Content-Type": "application/json"
+#     }
+
+#     mutation = f"""
+#     mutation {{
+#       metafieldsSet(metafields: [{{
+#         ownerId: "{product_id}",
+#         namespace: "custom",
+#         key: "gold_weight",
+#         type: "number_decimal",
+#         value: "{weight}"
+#       }}]) {{
+#         userErrors {{
+#           message
+#         }}
+#       }}
+#     }}
+#     """
+
+#     res = requests.post(url, json={"query": mutation}, headers=headers)
+#     print("Metafield update:", res.json())
+
+
+    
 
 
 
