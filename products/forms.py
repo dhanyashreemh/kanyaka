@@ -1,6 +1,12 @@
 from django import forms
 
-class ProductForm(forms.Form):
+from django import forms
+from .models import Product
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        exclude = ["shopify_product_id", "shopify_variant_id"]
 
     title = forms.CharField(
         max_length=255,
@@ -56,6 +62,7 @@ class ProductForm(forms.Form):
     price = forms.DecimalField(
         max_digits=10,
         decimal_places=2,
+        required=False,
         widget=forms.NumberInput(attrs={"class":"form-control"})
     )
 

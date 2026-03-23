@@ -12,6 +12,9 @@ import json
 import tempfile
 from .forms import ProductForm
 from django.contrib import messages
+from decimal import Decimal
+from business.models import GoldRate   
+
 
 
 class CSVUploadForm(forms.Form):
@@ -326,10 +329,19 @@ def create_product_shopify(
    
     publish_product_to_online_store(product_id)
 
-    return product_data
+    return {
+      "product_id": product_id,
+      "variant_id": variant_id
+    }
+
+
 # ----------------------------
 # MANUAL PRODUCT UPLOAD
 # ----------------------------
+
+from decimal import Decimal
+
+
 
 @login_required
 def manual_product_upload(request):
@@ -338,65 +350,121 @@ def manual_product_upload(request):
         form = ProductForm(request.POST, request.FILES)
 
         if form.is_valid():
+            print("✅ FORM VALID")
+
             product = form.save(commit=False)
 
-            from .models import GoldRate
+            # =========================
+            # 💰 PRICE CALCULATION (FIXED)
+            # =========================
             rate_obj = GoldRate.objects.last()
 
-            if rate_obj and product.weight is not None:
+            if rate_obj and product.weight:
 
-                weight = float(product.weight or 0)
+                weight = Decimal(product.weight or 0)
+
+                # Base price (22k)
                 base_price = weight * rate_obj.rate_22k
 
-                making = rate_obj.making_charge
+                # Making charge
+                making = rate_obj.making_charge_per_gram
 
-                # ✅ Dynamic making logic
                 if rate_obj.making_type == "percent":
-                    making_cost = base_price * (making / 100)
+                    making_cost = base_price * (making / Decimal(100))
                 else:
                     making_cost = weight * making
 
                 subtotal = base_price + making_cost
-                gst_amount = subtotal * (rate_obj.gst / 100)
+
+                # GST
+                gst_amount = subtotal * (rate_obj.gst_percentage / Decimal(100))
 
                 product.price = round(subtotal + gst_amount, 2)
 
-            # 🔥 Shopify call (FIXED comma issue)
-            shopify_data = create_product_shopify(
-                title=product.title,
-                description=product.description,
-                price=product.price,
-                compare_price=product.compare_price,
-                collection=product.collection,
-                jewelry_type=product.jewelry_type,
-                metal_type=product.metal_type,
-                stone_type=product.stone_type,
-                purity=product.purity,
-                occasion=product.occasion,
-                weight=float(product.weight or 0),  # ✅ fixed
-                quantity=product.quantity,
-                sku=product.sku,
-                tags=product.tags,
-                barcode=product.barcode,
-                cost_per_item=product.cost_per_item,
-                unit_price=product.unit_price,
-                charge_tax=product.charge_tax,
-                inventory_tracked=product.inventory_tracked,
-                sell_out_of_stock=product.sell_out_of_stock,
-            )
+            else:
+                product.price = product.price or Decimal(0)
 
-            # ✅ Save Shopify IDs
-            product.shopify_product_id = shopify_data["product_id"]
-            product.shopify_variant_id = shopify_data["variant_id"]
+            print("💰 FINAL PRICE:", product.price)
 
-            product.save()
+            # =========================
+            # 🛒 SHOPIFY SYNC (SAFE)
+            # =========================
+            try:
+                shopify_data = create_product_shopify(
+                    title=product.title,
+                    description=product.description,
+                    price=float(product.price),  # Shopify expects float
+                    compare_price=product.compare_price,
+                    collection=product.collection,
+                    jewelry_type=product.jewelry_type,
+                    metal_type=product.metal_type,
+                    stone_type=product.stone_type,
+                    purity=product.purity,
+                    occasion=product.occasion,
+                    weight=float(product.weight or 0),
+                    quantity=product.quantity,
+                    sku=product.sku,
+                    tags=product.tags,
+                    barcode=product.barcode,
+                    cost_per_item=product.cost_per_item,
+                    unit_price=product.unit_price,
+                    charge_tax=product.charge_tax,
+                    inventory_tracked=product.inventory_tracked,
+                    sell_out_of_stock=product.sell_out_of_stock,
+                )
 
+                if shopify_data:
+                    product.shopify_product_id = shopify_data.get("product_id")
+                    product.shopify_variant_id = shopify_data.get("variant_id")
+
+            except Exception as e:
+                print("❌ Shopify Error:", e)
+                messages.error(request, f"Shopify error: {str(e)}")
+                return render(request, "products/manual_upload.html", {"form": form})
+
+            # =========================
+            # 💾 SAVE TO DB
+            # =========================
+            Product.objects.update_or_create(
+              shopify_product_id=product.shopify_product_id,
+              defaults={
+                  "title": product.title,
+                  "description": product.description,
+                  "price": product.price,
+                  "compare_price": product.compare_price,
+                  "collection": product.collection,
+                  "jewelry_type": product.jewelry_type,
+                  "metal_type": product.metal_type,
+                  "stone_type": product.stone_type,
+                  "purity": product.purity,
+                  "occasion": product.occasion,
+                  "weight": product.weight,
+                  "quantity": product.quantity,
+                  "sku": product.sku,
+                  "tags": product.tags,
+                  "barcode": product.barcode,
+                  "cost_per_item": product.cost_per_item,
+                  "unit_price": product.unit_price,
+                  "charge_tax": product.charge_tax,
+                  "inventory_tracked": product.inventory_tracked,
+                  "sell_out_of_stock": product.sell_out_of_stock,
+                  "shopify_variant_id": product.shopify_variant_id,
+              }
+          )
+
+            messages.success(request, "✅ Product created successfully!")
             return redirect("staff_products")
+
+        else:
+            print("❌ FORM ERRORS:", form.errors)
+            messages.error(request, form.errors)
 
     else:
         form = ProductForm()
 
     return render(request, "products/manual_upload.html", {"form": form})
+
+
 # ----------------------------
 # BULK CSV UPLOAD
 # ----------------------------
@@ -558,11 +626,6 @@ def bulk_product_upload(request):
 def staff_products(request):
     products = Product.objects.all().order_by("-id")
     return render(request, "staff/products.html", {"products": products})
-
-
-
-from django.conf import settings
-from products.models import Product
 
 
 def sync_shopify_products(request):
