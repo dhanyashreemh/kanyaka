@@ -18,6 +18,7 @@ import json
 import hmac
 import hashlib
 import base64 
+from business.views import calculate_price
 
 
 
@@ -405,31 +406,16 @@ def manual_product_upload(request):
             rate_obj = GoldRate.objects.last()
 
             if rate_obj and product.weight:
-
-                weight = Decimal(product.weight or 0)
-
-                # Base price (22k)
-                base_price = weight * rate_obj.rate_22k
-
-                # Making charge
-                making = rate_obj.making_charge_per_gram
-
-                if rate_obj.making_type == "percent":
-                    making_cost = base_price * (making / Decimal(100))
-                else:
-                    making_cost = weight * making
-
-                subtotal = base_price + making_cost
-
-                # GST
-                gst_amount = subtotal * (rate_obj.gst_percentage / Decimal(100))
-
-                product.price = round(subtotal + gst_amount, 2)
-
+                product.price = calculate_price(
+                    weight=product.weight,
+                    rate22=rate_obj.rate_22k,
+                    making=rate_obj.making_charge_per_gram,
+                    gst=rate_obj.gst_percentage,
+                    making_type=rate_obj.making_type,
+                    stone=product.cost_per_item
+                )
             else:
-                product.price = product.price or Decimal(0)
-
-            print("💰 FINAL PRICE:", product.price)
+                product.price = Decimal(0)
 
             # =========================
             # 🛒 SHOPIFY SYNC (SAFE)
@@ -539,7 +525,21 @@ def bulk_product_upload(request):
                     # ✅ CLEAN DATA
                     title = row.get("title")
                     description = row.get("description")
-                    price = float(row.get("price") or 0)
+                    rate_obj = GoldRate.objects.last()
+
+                    weight = Decimal(row.get("weight") or 0)
+
+                    if rate_obj and weight:
+                        price = calculate_price(
+                            weight=weight,
+                            rate22=rate_obj.rate_22k,
+                            making=rate_obj.making_charge_per_gram,
+                            gst=rate_obj.gst_percentage,
+                            making_type=rate_obj.making_type,
+                            stone=Decimal(row.get("cost_per_item") or 0)
+                        )
+                    else:
+                        price = Decimal(0)
 
                     # Convert booleans safely
                     def to_bool(val):

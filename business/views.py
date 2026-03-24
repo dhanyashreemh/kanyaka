@@ -8,6 +8,8 @@ from orders.models import Order
 from products.models import Product
 from .shopify_service import get_shopify_products, update_product_price
 import time
+from threading import Thread
+from decimal import Decimal
 
 #staff panel view
 from django.contrib.auth.decorators import login_required
@@ -21,59 +23,76 @@ def dashboard(request):
     rate = GoldRate.objects.order_by('-updated_at').first()
     return render(request, "staff/dashboard.html", {"rate": rate})
 
-def calculate_price(weight, stone, rate22, making, gst):
+from decimal import Decimal
 
+def calculate_price(weight, rate22, making, gst, making_type="fixed", stone=0):
+    """
+    Universal price calculator for jewelry
+
+    weight       → grams
+    rate22       → gold rate per gram
+    making       → making charge (percent or per gram)
+    gst          → GST %
+    making_type  → "percent" or "fixed"
+    stone        → extra cost (optional)
+    """
+
+    # Safe conversion
+    weight = Decimal(weight or 0)
+    rate22 = Decimal(rate22 or 0)
+    making = Decimal(making or 0)
+    gst = Decimal(gst or 0)
+    stone = Decimal(stone or 0)
+
+    # Gold value
     gold_value = weight * rate22
-    making_cost = weight * making
 
+    # Making charge
+    if making_type == "percent":
+        making_cost = gold_value * (making / Decimal(100))
+    else:
+        making_cost = weight * making
+
+    # Subtotal
     subtotal = gold_value + making_cost + stone
-    tax = subtotal * (gst / 100)
 
+    # GST
+    tax = subtotal * (gst / Decimal(100))
+
+    # Final
     total = subtotal + tax
 
-    return round(total)
+    return round(total, 2)
 
 
 #Update Rate View
 
-from threading import Thread
-
-# ----------------------------
-# 🔥 BACKGROUND PRICE UPDATE
-# ----------------------------
 def update_all_products(rate_obj):
 
     products = Product.objects.exclude(weight__isnull=True)
 
     for product in products:
         try:
-            weight = float(product.weight or 0)
-            stone = float(getattr(product, "stone_price", 0) or 0)
-
-            if weight <= 0:
+            if not product.weight:
                 continue
 
-            base_price = weight * rate_obj.rate_22k
+            new_price = calculate_price(
+                weight=product.weight,
+                rate22=rate_obj.rate_22k,
+                making=rate_obj.making_charge_per_gram,
+                gst=rate_obj.gst_percentage,
+                making_type=rate_obj.making_type,
+                stone=product.cost_per_item
+            )
 
-            if rate_obj.making_type == "percent":
-                making_cost = base_price * (rate_obj.making_charge_per_gram / 100)
-            else:
-                making_cost = weight * rate_obj.making_charge_per_gram
-
-            subtotal = base_price + making_cost + stone
-            gst_amount = subtotal * (rate_obj.gst_percentage / 100)
-
-            total_price = round(subtotal + gst_amount, 2)
-
-            product.price = total_price
+            product.price = new_price
             product.save(update_fields=["price"])
 
             if product.shopify_variant_id:
-                update_product_price(product.shopify_variant_id, total_price)
+                update_product_price(product.shopify_variant_id, float(new_price))
+                time.sleep(0.3)  # avoid Shopify rate limit
 
-                time.sleep(0.3)  # 🔥 avoid rate limit
-
-            print(f"✅ {product.title} → ₹{total_price}")
+            print(f"✅ {product.title} → ₹{new_price}")
 
         except Exception as e:
             print(f"❌ {product.title}: {e}")
@@ -109,7 +128,7 @@ def update_rate(request):
         rate_obj.save()
 
         # 🚀 RUN IN BACKGROUND (THIS IS THE UPGRADE)
-        update_all_products(rate_obj)
+        Thread(target=update_all_products, args=(rate_obj,)).start()
 
         print("🚀 Background price update started")
 
