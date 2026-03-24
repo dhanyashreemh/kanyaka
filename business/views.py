@@ -127,9 +127,6 @@ def update_rate(request):
         rate_obj.making_type = making_type
         rate_obj.save()
 
-        # 🚀 RUN IN BACKGROUND (THIS IS THE UPGRADE)
-        Thread(target=update_all_products, args=(rate_obj,)).start()
-
         print("🚀 Background price update started")
 
         return redirect("dashboard")
