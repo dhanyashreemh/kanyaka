@@ -19,6 +19,8 @@ import hmac
 import hashlib
 import base64 
 from business.views import calculate_price
+from .utils import cleanup_old_webhooks
+from .models import WebhookLog
 
 
 
@@ -1132,6 +1134,8 @@ def safe_decimal(value, default=None):
 #Receives Shopify webhook↓Extracts product data !Updates Django DB
 @csrf_exempt
 def shopify_product_webhook(request):
+    # 🧹 cleanup old webhook logs
+    cleanup_old_webhooks()
     try:
         received_hmac = request.headers.get("X-Shopify-Hmac-Sha256")
         secret = settings.SHOPIFY_WEBHOOK_SECRET
@@ -1149,6 +1153,19 @@ def shopify_product_webhook(request):
             return HttpResponse(status=401)
 
         print("✅ PRODUCT WEBHOOK VERIFIED")
+
+
+        webhook_id = request.headers.get("X-Shopify-Webhook-Id")
+
+        if WebhookLog.objects.filter(webhook_id=webhook_id).exists():
+            print("⚠️ Duplicate webhook skipped")
+            return HttpResponse(status=200)
+
+        # Save webhook
+        WebhookLog.objects.create(
+            webhook_id=webhook_id,
+            topic=request.headers.get("X-Shopify-Topic")
+        )
 
         topic = request.headers.get("X-Shopify-Topic")
         data = json.loads(request.body)
@@ -1221,11 +1238,16 @@ def shopify_product_webhook(request):
                     print(f"❌ Error saving variant {variant_id}: {str(e)}")
 
         elif topic == "products/delete":
-            product_id = data.get("id")
-            deleted_count, _ = Product.objects.filter(
-                shopify_product_id__contains=str(product_id)
-            ).delete()
-            print(f"🗑️ Deleted {deleted_count} records")
+          print("⚠️ Delete webhook received")
+
+          product_id = data.get("id")
+          product_gid = f"gid://shopify/Product/{product_id}"
+
+          deleted_count, _ = Product.objects.filter(
+              shopify_product_id=product_gid
+          ).delete()
+
+          print(f"🗑️ Deleted {deleted_count} records")
 
         return HttpResponse(status=200)
 

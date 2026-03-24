@@ -39,3 +39,8 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+    
+class WebhookLog(models.Model):
+    webhook_id = models.CharField(max_length=255, unique=True)
+    topic = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
