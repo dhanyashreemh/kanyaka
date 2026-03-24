@@ -494,10 +494,15 @@ def bulk_product_upload(request):
             for row in reader:
                 data = {
                     "input": {
-                        "title": row["title"],
-                        "descriptionHtml": row["description"], 
+                        "title": row.get("title"),
+                        "descriptionHtml": row.get("description"),
                         "status": "ACTIVE",
-                        "tags": [row["tag"]],                 
+                        "tags": [t.strip() for t in row.get("tags", "").split(",") if t.strip()],
+                        "variants": [
+                            {
+                                "price": str(row.get("price", "0"))
+                            }
+                        ]
                     }
                 }
 
@@ -583,12 +588,13 @@ def bulk_product_upload(request):
             mutation {{
               bulkOperationRunMutation(
                 mutation: \"\"\"
-                mutation productCreate($input: ProductCreateInput!) {{
-                  productCreate(product: $input) {{
+                mutation ($input: ProductInput!) {{
+                  productCreate(input: $input) {{
                     product {{
                       id
                     }}
                     userErrors {{
+                      field
                       message
                     }}
                   }}
@@ -601,11 +607,12 @@ def bulk_product_upload(request):
                   status
                 }}
                 userErrors {{
+                  field
                   message
                 }}
               }}
             }}
-            """
+           """
 
             bulk_response = requests.post(
                 graphql_url,
@@ -615,7 +622,7 @@ def bulk_product_upload(request):
 
             print("🔥 BULK RUN RESPONSE:", bulk_response.json())
 
-            return redirect("staff_panel")
+            return redirect("staff_products")
 
     else:
         form = CSVUploadForm()
@@ -629,12 +636,8 @@ def staff_products(request):
 
 
 def sync_shopify_products(request):
-
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/products.json?limit=250"
-
-    headers = {
-        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN
-    }
+    headers = {"X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN}
 
     while url:
         response = requests.get(url, headers=headers)
@@ -644,56 +647,65 @@ def sync_shopify_products(request):
 
         for product in data.get("products", []):
 
-            for variant in product.get("variants", []):
+            product_gid = f"gid://shopify/Product/{product['id']}"
 
+            # Fetch metafields per product
+            metafields = get_shopify_metafields(product_gid)
+
+            weight        = safe_decimal(metafields.get("gold_weight"))
+            purity        = metafields.get("gold_purity")
+            stone_type    = metafields.get("stone_type")
+            cost_per_item = safe_decimal(metafields.get("making_charge"))
+
+            for variant in product.get("variants", []):
                 Product.objects.update_or_create(
                     shopify_variant_id=variant["id"],
                     defaults={
+                        # IDs
+                        "shopify_product_id": product_gid,
 
-                        # 🔑 IDs
-                        "shopify_product_id": f"gid://shopify/Product/{product['id']}",
-
-                        # 🧾 Basic Info
-                        "title": product.get("title"),
+                        # Basic Info
+                        "title":       product.get("title"),
                         "description": product.get("body_html"),
 
-                        # 💰 Pricing
-                        "price": float(variant.get("price", 0)),
-                        "compare_price": float(variant.get("compare_at_price") or 0),
+                        # Pricing
+                        "price":         safe_decimal(variant.get("price"), Decimal("0")),
+                        "compare_price": safe_decimal(variant.get("compare_at_price")),
 
-                        # 🏷️ Classification
+                        # Classification
                         "collection": product.get("product_type") or "General",
-                        "tags": product.get("tags"),
+                        "tags":       product.get("tags"),
 
-                        # 💎 Jewelry fields (optional mapping)
-                        "jewelry_type": product.get("product_type"),
-                        "metal_type": None,
-                        "stone_type": None,
+                        # Jewelry (from metafields)
+                        "weight":        weight,
+                        "purity":        purity,
+                        "stone_type":    stone_type,
+                        "cost_per_item": cost_per_item,
 
-                        # ⚖️ Weight
-                        "weight": variant.get("weight") or 0,
+                        # ❌ jewelry_type, metal_type, occasion → Django master, never touch here
 
-                        # 📦 Inventory
-                        "sku": variant.get("sku"),
+                        # Inventory
+                        "sku":     variant.get("sku"),
                         "barcode": variant.get("barcode"),
                         "quantity": variant.get("inventory_quantity", 0),
 
-                        # 🔧 Raw backup (VERY IMPORTANT)
+                        "inventory_tracked": variant.get("inventory_management") == "shopify",
+                        "sell_out_of_stock": variant.get("inventory_policy") == "continue",
+                        "charge_tax":        variant.get("taxable", True),
+
+                        # Raw backup
                         "raw_data": product,
                     }
                 )
-
                 print(f"✅ Synced: {product['title']} (Variant: {variant['id']})")
 
         link_header = response.headers.get("Link")
-
         if link_header and 'rel="next"' in link_header:
             url = link_header.split(";")[0].strip("<> ")
         else:
             url = None
 
-    print("🚀 Shopify sync completed")
-
+    print("🚀 Sync completed")
     return redirect("staff_products")
 
 @login_required
@@ -738,14 +750,16 @@ def edit_product(request, pk):
     return render(request, "staff/edit_product.html", {"product": product})
 
 
+# REPLACE delete_product
+
 @login_required
 def delete_product(request, pk):
-    product = Product.objects.get(pk=pk)
+    product = get_object_or_404(Product, pk=pk)  
 
     if request.method == "POST":
-        delete_product_shopify(product)  # 🔥 Delete in Shopify first
-        product.delete()                 # Then delete locally
-
+        delete_product_shopify(product)
+        product.delete()
+        messages.success(request, "🗑️ Product deleted successfully.")
         return redirect("staff_products")
 
     return render(request, "staff/delete_product.html", {"product": product})
@@ -998,8 +1012,8 @@ def run_bulk_operation(staged_path):
     mutation {{
       bulkOperationRunMutation(
         mutation: \"\"\"
-        mutation productCreate($input: ProductCreateInput!) {{
-          productCreate(product: $input) {{
+        mutation ($input: ProductInput!) {{
+          productCreate(input: $input) {{
             product {{
               id
               title
@@ -1094,6 +1108,47 @@ def download_bulk_result(result_url):
         f.write(response.content)
 
 
+def get_shopify_metafields(product_gid):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    query getMetafields($id: ID!) {
+      product(id: $id) {
+        metafields(first: 20, namespace: "custom") {
+          edges {
+            node {
+              key
+              value
+            }
+          }
+        }
+      }
+    }
+    """
+
+    response = requests.post(url, json={"query": query, "variables": {"id": product_gid}}, headers=headers)
+    data = response.json()
+
+    metafields = {}
+    edges = data.get("data", {}).get("product", {}).get("metafields", {}).get("edges", [])
+    for edge in edges:
+        node = edge["node"]
+        metafields[node["key"]] = node["value"]
+
+    print("📦 Metafields:", metafields)
+    return metafields
+
+
+def safe_decimal(value, default=None):
+    try:
+        return Decimal(str(value)) if value else default
+    except Exception:
+        return default
+
 #Receives Shopify webhook↓Extracts product data !Updates Django DB
 @csrf_exempt
 def shopify_product_webhook(request):
@@ -1103,78 +1158,76 @@ def shopify_product_webhook(request):
 
         print("🔥 WEBHOOK:", topic)
 
-        if topic == "products/create":
-            print("🟢 CREATE")
-
-        elif topic == "products/update":
-            print("🟡 UPDATE")
-
-        elif topic == "products/delete":
-            print("🔴 DELETE")
-
-        # =========================
-        # 🟢 CREATE + UPDATE
-        # =========================
         if topic in ["products/create", "products/update"]:
 
-            for variant in data.get("variants", []):
+            raw_product_id = data.get("id")
+            product_gid = f"gid://shopify/Product/{raw_product_id}"
 
+            # Fetch metafields from Shopify
+            metafields = get_shopify_metafields(product_gid)
+
+            weight        = safe_decimal(metafields.get("gold_weight"))
+            purity        = metafields.get("gold_purity")
+            stone_type    = metafields.get("stone_type")
+            cost_per_item = safe_decimal(metafields.get("making_charge"))
+
+            for variant in data.get("variants", []):
                 variant_id = variant.get("id")
 
                 if not variant_id:
                     print("❌ Missing variant ID")
                     continue
 
-                print("👉 Variant:", variant_id)
-
                 try:
                     Product.objects.update_or_create(
                         shopify_variant_id=variant_id,
                         defaults={
+                            # IDs
+                            "shopify_product_id": product_gid,
 
-                            # 🔑 IDs
-                            "shopify_product_id": f"gid://shopify/Product/{data['id']}",
-
-                            # 🧾 Basic Info
-                            "title": data.get("title"),
+                            # Basic Info
+                            "title":       data.get("title"),
                             "description": data.get("body_html"),
 
-                            # 💰 Pricing
-                            "price": float(variant.get("price") or 0),
-                            "compare_price": float(variant.get("compare_at_price") or 0),
+                            # Pricing
+                            "price":         safe_decimal(variant.get("price"), Decimal("0")),
+                            "compare_price": safe_decimal(variant.get("compare_at_price")),
 
-                            # 🏷️ Classification
+                            # Classification
                             "collection": data.get("product_type"),
-                            "tags": data.get("tags"),
+                            "tags":       data.get("tags"),
 
-                            # 📦 Inventory
-                            "sku": variant.get("sku"),
-                            "barcode": variant.get("barcode"),
+                            # Jewelry (from metafields)
+                            "weight":        weight,
+                            "purity":        purity,
+                            "stone_type":    stone_type,
+                            "cost_per_item": cost_per_item,
+
+                            # ❌ jewelry_type, metal_type, occasion → Django master, never touch here
+
+                            # Inventory
+                            "sku":      variant.get("sku"),
+                            "barcode":  variant.get("barcode"),
                             "quantity": variant.get("inventory_quantity") or 0,
 
-                            # ❌ NO weight here (DB is master)
+                            "inventory_tracked":  variant.get("inventory_management") == "shopify",
+                            "sell_out_of_stock":  variant.get("inventory_policy") == "continue",
+                            "charge_tax":         variant.get("taxable", True),
 
-                            # 🔧 Raw backup
-                            "raw_data": data
+                            # Raw backup
+                            "raw_data": data,
                         }
                     )
+                    print(f"✅ Synced variant {variant_id}")
 
                 except Exception as e:
                     print(f"❌ Error saving variant {variant_id}: {str(e)}")
 
-            print("✅ Synced (DB remains master for weight)")
-
-        # =========================
-        # 🔴 DELETE
-        # =========================
         elif topic == "products/delete":
-
             product_id = data.get("id")
-
             deleted_count, _ = Product.objects.filter(
                 shopify_product_id__contains=str(product_id)
             ).delete()
-
             print(f"🗑️ Deleted {deleted_count} records")
 
         return HttpResponse(status=200)
@@ -1182,7 +1235,6 @@ def shopify_product_webhook(request):
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=500)
-    
     
 #helper to fetch metafields
 # def get_product_metafields(product_id):
@@ -1239,7 +1291,10 @@ def shopify_product_webhook(request):
 
 
     
-
+@login_required
+def product_detail(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    return render(request, "staff/product_detail.html", {"product": product})
 
 
 

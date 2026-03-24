@@ -42,7 +42,7 @@ from threading import Thread
 # ----------------------------
 def update_all_products(rate_obj):
 
-    products = Product.objects.all()
+    products = Product.objects.exclude(weight__isnull=True)
 
     for product in products:
         try:
@@ -50,13 +50,10 @@ def update_all_products(rate_obj):
             stone = float(getattr(product, "stone_price", 0) or 0)
 
             if weight <= 0:
-                print(f"⚠️ Skipping {product.title} (no weight)")
                 continue
 
-            # 💰 Base price
             base_price = weight * rate_obj.rate_22k
 
-            # 🔥 Making logic
             if rate_obj.making_type == "percent":
                 making_cost = base_price * (rate_obj.making_charge_per_gram / 100)
             else:
@@ -67,18 +64,18 @@ def update_all_products(rate_obj):
 
             total_price = round(subtotal + gst_amount, 2)
 
-            # ✅ Save locally
             product.price = total_price
-            product.save()
+            product.save(update_fields=["price"])
 
-            # 🚀 Update Shopify
             if product.shopify_variant_id:
                 update_product_price(product.shopify_variant_id, total_price)
 
-            print(f"✅ Updated {product.title} → ₹{total_price}")
+                time.sleep(0.3)  # 🔥 avoid rate limit
+
+            print(f"✅ {product.title} → ₹{total_price}")
 
         except Exception as e:
-            print(f"❌ Error updating {product.title}: {str(e)}")
+            print(f"❌ {product.title}: {e}")
 
 
 # ----------------------------
@@ -111,7 +108,7 @@ def update_rate(request):
         rate_obj.save()
 
         # 🚀 RUN IN BACKGROUND (THIS IS THE UPGRADE)
-        Thread(target=update_all_products, args=(rate_obj,)).start()
+        update_all_products(rate_obj)
 
         print("🚀 Background price update started")
 

@@ -1,0 +1,129 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/productDetail.css' %}" />
+
+<div class="container-narrow">
+  <div class="page-header">
+    <h2>{{ product.title }}</h2>
+  </div>
+  <div class="page-header">
+    <div style="display: flex; gap: 10px">
+      <a href="{% url 'staff_products' %}" class="btn"> ← Back </a>
+
+      <a href="{% url 'edit_product' product.id %}" class="btn btn-primary">
+        ✏️ Edit Product
+      </a>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT -->
+    <div>
+      <!-- BASIC INFO -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">📄</span>
+          <h3>Basic Information</h3>
+        </div>
+
+        <div class="card-body">
+          <div class="meta-row">
+            <span>Title</span>
+            <span>{{ product.title }}</span>
+          </div>
+
+          <div class="meta-row description-row">
+            <span>Description</span>
+            <span>{{ product.description|default:"-" }}</span>
+          </div>
+
+          <div class="meta-row">
+            <span>Collection</span>
+            <span>{{ product.collection|default:"-" }}</span>
+          </div>
+
+          <div class="meta-row">
+            <span>Tags</span>
+            <span>{{ product.tags|default:"-" }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- JEWELRY -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">💎</span>
+          <h3>Jewelry Details</h3>
+        </div>
+
+        <div class="card-body">
+          <div class="meta-row">
+            <span>Type</span><span>{{ product.jewelry_type|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Metal</span><span>{{ product.metal_type|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Stone</span><span>{{ product.stone_type|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Purity</span><span>{{ product.purity|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Weight</span><span>{{ product.weight|default:"-" }} g</span>
+          </div>
+          <div class="meta-row">
+            <span>Occasion</span><span>{{ product.occasion|default:"-" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <!-- PRICING -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">💰</span>
+          <h3>Pricing</h3>
+        </div>
+
+        <div class="card-body">
+          <div class="meta-row">
+            <span>Price</span><span>₹{{ product.price }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Compare Price</span
+            ><span>₹{{ product.compare_price|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Cost per item</span
+            ><span>₹{{ product.cost_per_item|default:"-" }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="card">
+        <div class="card-header">
+          <span class="icon">📦</span>
+          <h3>Inventory</h3>
+        </div>
+
+        <div class="card-body">
+          <div class="meta-row">
+            <span>SKU</span><span>{{ product.sku|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Barcode</span><span>{{ product.barcode|default:"-" }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Quantity</span><span>{{ product.quantity }}</span>
+          </div>
+          <div class="meta-row">
+            <span>Tracked</span><span>{{ product.inventory_tracked }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

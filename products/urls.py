@@ -21,5 +21,6 @@ urlpatterns = [
         views.manual_product_upload,
         name="manual_upload"
     ),
+    path("staff/products/<int:pk>/", views.product_detail, name="product_detail"),
 
 ]

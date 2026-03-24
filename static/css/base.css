@@ -546,9 +546,43 @@ tbody td {
   color: #fff;
 }
 
-/* ── Centered Page Layout (login, delete, staff panel) ── */
-.centered {
-  display: flex;
-  align-items: center;
+/* manual and bulk upload options */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
   justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  width: 400px;
+  text-align: center;
+}
+
+.modal-options {
+  display: flex;
+  gap: 15px;
+}
+
+.modal-card {
+  flex: 1;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #333;
+  transition: 0.2s;
+}
+
+.modal-card:hover {
+  border-color: #c9a96e;
+  background: #f7f0e3;
 }
