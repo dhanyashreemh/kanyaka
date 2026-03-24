@@ -7,6 +7,7 @@ from django.shortcuts import render
 from orders.models import Order
 from products.models import Product
 from .shopify_service import get_shopify_products, update_product_price
+import time
 
 #staff panel view
 from django.contrib.auth.decorators import login_required
