@@ -14,6 +14,10 @@ from .forms import ProductForm
 from django.contrib import messages
 from decimal import Decimal
 from business.models import GoldRate   
+import json
+import hmac
+import hashlib
+import base64 
 
 
 
@@ -60,6 +64,46 @@ def get_online_store_publication_id():
     return None
 
 
+def update_inventory_item(inventory_item_id, sku=None, barcode=None):
+    url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
+
+    headers = {
+        "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    mutation = """
+    mutation inventoryItemUpdate($input: InventoryItemInput!) {
+      inventoryItemUpdate(input: $input) {
+        inventoryItem {
+          id
+          sku
+          barcode
+        }
+        userErrors {
+          message
+        }
+      }
+    }
+    """
+
+    variables = {
+        "input": {
+            "id": inventory_item_id,
+            "sku": sku or "",
+            "barcode": barcode or ""
+        }
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json={"query": mutation, "variables": variables}
+    )
+
+    print("✅ SKU/BARCODE UPDATED:", response.json())
+
+
 #publishes the product to Online Store.
 def publish_product_to_online_store(product_id):
     url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
@@ -79,9 +123,6 @@ def publish_product_to_online_store(product_id):
           publicationId: "{publication_id}"
         }}
       ) {{
-        publishable {{
-          id
-        }}
         userErrors {{
           message
         }}
@@ -208,8 +249,6 @@ def create_product_shopify(
         "id": variant_id,
         "price": str(price),
         "compareAtPrice": str(compare_price) if compare_price else None,
-        "sku": sku or "",
-        "barcode": barcode or "",
         "taxable": charge_tax,
         "inventoryPolicy": "CONTINUE" if sell_out_of_stock else "DENY",
         "inventoryItem": {
@@ -259,6 +298,11 @@ def create_product_shopify(
         inv_data = inv_response.json()
         print("INVENTORY ITEM RESPONSE:", inv_data)
         inventory_item_id = inv_data["data"]["productVariant"]["inventoryItem"]["id"]
+        update_inventory_item(
+            inventory_item_id,
+            sku=sku,
+            barcode=barcode
+        )
 
         # Get first location id
         
@@ -285,6 +329,7 @@ def create_product_shopify(
                 "input": {
                     "reason": "correction",
                     "name": "available",
+                    "ignoreCompareQuantity": True,
                     "quantities": [{
                         "inventoryItemId": inventory_item_id,
                         "locationId": location_id,
@@ -477,152 +522,92 @@ def bulk_product_upload(request):
         if form.is_valid():
             file = request.FILES["file"]
 
-            # 1️⃣ Convert CSV → JSONL
-        
-            if file.name.endswith(".csv"):
-                decoded_file = file.read().decode("utf-8")
-                io_string = io.StringIO(decoded_file)
-                reader = list(csv.DictReader(io_string))
-            else:
-                return render(request, "products/bulk_upload.html", {
-                    "form": form,
-                    "error": "Only CSV or Excel files are supported."
-                })
+            # ✅ Read CSV (tab-separated fix included)
+            decoded_file = file.read().decode("utf-8")
+            io_string = io.StringIO(decoded_file)
 
-            temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl")
+            # auto detect delimiter (comma or tab)
+            sample = decoded_file[:1024]
+            dialect = csv.Sniffer().sniff(sample)
+            reader = csv.DictReader(io_string, dialect=dialect)
+
+            success_count = 0
+            error_count = 0
 
             for row in reader:
-                data = {
-                    "input": {
-                        "title": row.get("title"),
-                        "descriptionHtml": row.get("description"),
-                        "status": "ACTIVE",
-                        "tags": [t.strip() for t in row.get("tags", "").split(",") if t.strip()],
-                        "variants": [
-                            {
-                                "price": str(row.get("price", "0"))
-                            }
-                        ]
-                    }
-                }
+                try:
+                    # ✅ CLEAN DATA
+                    title = row.get("title")
+                    description = row.get("description")
+                    price = float(row.get("price") or 0)
 
-                temp.write((json.dumps(data) + "\n").encode("utf-8"))
+                    # Convert booleans safely
+                    def to_bool(val):
+                        return str(val).strip().lower() in ["true", "1", "yes"]
 
-            temp.close()
-            jsonl_path = temp.name
+                    shopify_data = create_product_shopify(
+                        title=title,
+                        description=description,
+                        price=price,
+                        compare_price=row.get("compare_price") or None,
+                        collection=row.get("collection"),
+                        jewelry_type=row.get("jewelry_type"),
+                        metal_type=row.get("metal_type"),
+                        stone_type=row.get("stone_type"),
+                        purity=row.get("purity"),
+                        occasion=row.get("occasion"),
+                        weight=float(row.get("weight") or 0),
+                        quantity=int(float(row.get("quantity") or 0)),
+                        sku=row.get("sku"),
+                        tags=row.get("tags"),
+                        barcode=row.get("barcode"),
+                        cost_per_item=row.get("cost_per_item"),
+                        unit_price=row.get("unit_price"),
+                        charge_tax=to_bool(row.get("charge_tax")),
+                        inventory_tracked=to_bool(row.get("inventory_tracked")),
+                        sell_out_of_stock=to_bool(row.get("sell_out_of_stock")),
+                    )
 
-            # -----------------------------
-            # 2️⃣ Create Staged Upload
-            # -----------------------------
-            graphql_url = f"https://{settings.SHOPIFY_STORE}/admin/api/2024-10/graphql.json"
+                    # ✅ SAVE TO DB
+                    Product.objects.update_or_create(
+                        shopify_product_id=shopify_data.get("product_id"),
+                        defaults={
+                            "title": title,
+                            "description": description,
+                            "price": price,
+                            "compare_price": row.get("compare_price"),
+                            "collection": row.get("collection"),
+                            "jewelry_type": row.get("jewelry_type"),
+                            "metal_type": row.get("metal_type"),
+                            "stone_type": row.get("stone_type"),
+                            "purity": row.get("purity"),
+                            "occasion": row.get("occasion"),
+                            "weight": row.get("weight"),
+                            "quantity": row.get("quantity"),
+                            "sku": row.get("sku"),
+                            "tags": row.get("tags"),
+                            "barcode": row.get("barcode"),
+                            "cost_per_item": row.get("cost_per_item"),
+                            "unit_price": row.get("unit_price"),
+                            "charge_tax": to_bool(row.get("charge_tax")),
+                            "inventory_tracked": to_bool(row.get("inventory_tracked")),
+                            "sell_out_of_stock": to_bool(row.get("sell_out_of_stock")),
+                            "shopify_variant_id": shopify_data.get("variant_id"),
+                        }
+                    )
 
-            headers = {
-                "X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN,
-                "Content-Type": "application/json"
-            }
+                    success_count += 1
 
-            staged_query = """
-            mutation {
-              stagedUploadsCreate(input: {
-                resource: BULK_MUTATION_VARIABLES,
-                filename: "bulk_products.jsonl",
-                mimeType: "text/jsonl",
-                httpMethod: POST
-              }) {
-                stagedTargets {
-                  url
-                  resourceUrl
-                  parameters {
-                    name
-                    value
-                  }
-                }
-              }
-            }
-            """
+                except Exception as e:
+                    print("❌ Error:", e)
+                    error_count += 1
 
-            staged_response = requests.post(
-                graphql_url,
-                json={"query": staged_query},
-                headers=headers
+            messages.success(
+                request,
+                f"✅ Bulk upload completed! Success: {success_count}, Failed: {error_count}"
             )
 
-            staged_data = staged_response.json()
-            print("STAGED RESPONSE:", staged_data)
-
-            target = staged_data["data"]["stagedUploadsCreate"]["stagedTargets"][0]
-
-            # -----------------------------
-            # 3️⃣ Upload JSONL to Google Storage
-            # -----------------------------
-            upload_url = target["url"]
-            params = {p["name"]: p["value"] for p in target["parameters"]}
-
-            with open(jsonl_path, "rb") as f:
-                files = {"file": f}
-                upload_response = requests.post(upload_url, data=params, files=files)
-
-            print("Upload status:", upload_response.status_code)
-
-            if upload_response.status_code not in [200, 201, 204]:
-                return render(request, "products/bulk_upload.html", {
-                    "form": form,
-                    "error": "File upload failed."
-                })
-
-            # -----------------------------
-            # 4️⃣ Extract CORRECT staged path (IMPORTANT FIX)
-            # -----------------------------
-            staged_path = None
-            for param in target["parameters"]:
-                if param["name"] == "key":
-                    staged_path = param["value"]
-                    break
-
-            print("Correct staged path:", staged_path)
-
-            # -----------------------------
-            # 5️⃣ Run Bulk Operation
-            # -----------------------------
-            bulk_mutation = f"""
-            mutation {{
-              bulkOperationRunMutation(
-                mutation: \"\"\"
-                mutation ($input: ProductInput!) {{
-                  productCreate(input: $input) {{
-                    product {{
-                      id
-                    }}
-                    userErrors {{
-                      field
-                      message
-                    }}
-                  }}
-                }}
-                \"\"\",
-                stagedUploadPath: "{staged_path}"
-              ) {{
-                bulkOperation {{
-                  id
-                  status
-                }}
-                userErrors {{
-                  field
-                  message
-                }}
-              }}
-            }}
-           """
-
-            bulk_response = requests.post(
-                graphql_url,
-                json={"query": bulk_mutation},
-                headers=headers
-            )
-
-            print("🔥 BULK RUN RESPONSE:", bulk_response.json())
-
-            return redirect("staff_products")
+            return redirect("sync_shopify_products")
 
     else:
         form = CSVUploadForm()
@@ -930,7 +915,7 @@ def delete_product_shopify(product):
 def generate_jsonl_from_csv(file):
     decoded_file = file.read().decode("utf-8")
     io_string = io.StringIO(decoded_file)
-    reader = csv.DictReader(io_string)
+    reader = list(csv.DictReader(io_string, delimiter='\t'))
 
     temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jsonl")
 
@@ -939,11 +924,6 @@ def generate_jsonl_from_csv(file):
             "input": {
                 "title": row["title"],
                 "descriptionHtml": row["description"],
-                "variants": [
-                    {
-                        "price": row["price"]
-                    }
-                ]
             }
         }
         temp.write((json.dumps(data) + "\n").encode("utf-8"))
@@ -1153,6 +1133,23 @@ def safe_decimal(value, default=None):
 @csrf_exempt
 def shopify_product_webhook(request):
     try:
+        received_hmac = request.headers.get("X-Shopify-Hmac-Sha256")
+        secret = settings.SHOPIFY_WEBHOOK_SECRET
+
+        calculated_hmac = base64.b64encode(
+            hmac.new(
+                secret.encode("utf-8"),
+                request.body,
+                hashlib.sha256
+            ).digest()
+        ).decode()
+
+        if not received_hmac or not hmac.compare_digest(received_hmac, calculated_hmac):
+            print("❌ HMAC verification failed")
+            return HttpResponse(status=401)
+
+        print("✅ PRODUCT WEBHOOK VERIFIED")
+
         topic = request.headers.get("X-Shopify-Topic")
         data = json.loads(request.body)
 
