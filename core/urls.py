@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from products.views import sync_shopify_products
+from products.views import sync_shopify_products 
 
 urlpatterns = [
     path("admin/", admin.site.urls),

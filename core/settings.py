@@ -6,16 +6,13 @@ from datetime import timedelta
 
 load_dotenv()
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg'
+SECRET_KEY = "django-insecure-1d$shj7%3xs-p3n!6+th+)&zsx)zo@l7wl=ol!ct5)e@#rd=vg"
+SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
+SHOPIFY_STORE = os.getenv("SHOPIFY_STORE")
+SHOPIFY_WEBHOOK_SECRET = os.getenv("SHOPIFY_WEBHOOK_SECRE")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -29,7 +26,6 @@ ALLOWED_HOSTS = [
 
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -42,23 +38,22 @@ INSTALLED_APPS = [
     'api',
     'orders',
     'core',
-    'business',
     'products',
-
+    'business.apps.BusinessConfig',
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'business.middleware.APILoggingMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
-    
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',   
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -79,21 +74,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv("DB_NAME"),
-#         'USER': os.getenv("DB_USER"),
-#         'PASSWORD': os.getenv("DB_PASSWORD"),
-#         'HOST': os.getenv("DB_HOST"),
-#         'PORT': os.getenv("DB_PORT"),
-#     }
-# }
 
 DATABASES = {
     'default': {
@@ -144,9 +124,6 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-SHOPIFY_WEBHOOK_SECRET = os.getenv("SHOPIFY_WEBHOOK_SECRET")
-
 #for admins login
 LOGIN_URL = '/staff/login/'
 LOGIN_REDIRECT_URL = "staff_panel"
@@ -163,10 +140,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://kanyaka.onrender.com",
 ]
 
-
-SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN")
-SHOPIFY_STORE = "tewgnw-e7.myshopify.com"
-SHOPIFY_WEBHOOK_SECRET = "cbe74e93f85e4baf143474c6893178824f80311ce84b6e19b85bcc489626cdbd"
 
 
 # Session settings
@@ -193,3 +166,29 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,  # or use a separate key
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} | {levelname} | {name} | {message}",
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+
+WEBHOOK_LOG_RETENTION_DAYS = 7

@@ -3,11 +3,14 @@ from . import views
 
 urlpatterns = [
 
-    path("staff-panel/", views.staff_panel, name="staff_panel"),
-    path("dashboard/", views.dashboard, name="dashboard"),
-    path("update-rate/", views.update_rate, name="update_rate"),
+    # Staff main
+    path("staff/", views.staff_panel, name="staff_panel"),
+    path("staff/dashboard/", views.dashboard, name="dashboard"),
 
+    # Staff actions
+    path("staff/update-rate/", views.update_rate, name="update_rate"),
+
+    # Staff resources
     path("staff/orders/", views.staff_orders, name="staff_orders"),
     path("staff/products/", views.staff_products, name="staff_products"),
-
 ]
