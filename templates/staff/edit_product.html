@@ -10,7 +10,7 @@
   <a href="{% url 'staff_products' %}" class="back-link">← Back to Products</a>
 </div>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
   {% csrf_token %}
 
   <div class="layout">
@@ -82,6 +82,27 @@
             <label>Description</label>
             <textarea name="description">{{ product.description }}</textarea>
           </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="icon">🖼️</span>
+              <h3>Product Image</h3>
+            </div>
+
+            <div class="card-body">
+              <!-- Show existing -->
+              {% if product.image_url %}
+                <img src="{{ product.image_url }}" width="120" style="margin-bottom:10px;">
+              {% endif %}
+
+              <!-- Upload new -->
+              <div class="field">
+                <label>Upload New Image</label>
+                <input type="file" name="image">
+              </div>
+            </div>
+          </div>
+
           <div class="field-grid">
             <div class="field">
               <label>Collection</label>

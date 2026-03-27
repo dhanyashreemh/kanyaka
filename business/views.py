@@ -6,7 +6,6 @@ from django.contrib import messages
 
 from .models import GoldRate
 from orders.models import Order
-from products.models import Product
 from .services import create_gold_rate
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,3 @@ def staff_orders(request):
     return render(request, "staff/orders.html", {"orders": orders})
 
 
-@login_required
-def staff_products(request):
-    products = Product.objects.all().order_by("-id")
-    return render(request, "staff/products.html", {"products": products})

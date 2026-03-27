@@ -26,7 +26,7 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from products.services.shopify_sync import sync_products_service
 import logging
-
+from django.db.models import Q
 from products.services.webhook_service import handle_shopify_webhook
 
 logger = logging.getLogger(__name__)
@@ -101,6 +101,24 @@ def manual_product_upload(request):
                 # ✅ attach IDs
                 product.shopify_product_id = shopify_data.get("product_id")
                 product.shopify_variant_id = shopify_data.get("variant_id")
+
+                from business.shopify_service import sync_images_to_shopify
+
+                images = request.FILES.getlist("images")
+
+                if images:
+
+                    for img in images:
+                        product.image = img
+                        product.save()
+
+                        # 🔥 AUTO URL (no error now)
+                        product.image_url = request.build_absolute_uri(product.image.url)
+                        product.save()
+
+                        # 🔥 Shopify sync
+                        from business.shopify_service import sync_images_to_shopify
+                        sync_images_to_shopify(product)
 
                 logger.info(f"✅ Shopify created: {product.shopify_product_id}")
 
@@ -246,9 +264,23 @@ def bulk_product_upload(request):
     return render(request, "products/bulk_upload.html", {"form": form})
 
 @login_required
+# views.py
 def staff_products(request):
-    products = Product.objects.all().order_by("-id")
-    return render(request, "staff/products.html", {"products": products})
+    query = request.GET.get('q')
+
+    if query:
+        filters = Q(title__icontains=query)
+
+        if query.isdigit():
+            filters |= Q(id=int(query))
+
+        products = Product.objects.filter(filters)
+    else:
+        products = Product.objects.all()
+
+    return render(request, 'staff/products.html', {
+        'products': products
+    })
 
 @login_required
 def edit_product(request, pk):
@@ -264,7 +296,7 @@ def edit_product(request, pk):
         # Pricing
         product.price         = request.POST.get("price")
         product.compare_price = request.POST.get("compare_price") or None
-        product.unit_price    = request.POST.get("unit_price")    or None
+        product.unit_price    = request.POST.get("unit_price") or None
         product.cost_per_item = request.POST.get("cost_per_item") or None
         product.charge_tax    = request.POST.get("charge_tax") == "on"
 
@@ -283,8 +315,27 @@ def edit_product(request, pk):
         product.inventory_tracked = request.POST.get("inventory_tracked") == "on"
         product.sell_out_of_stock = request.POST.get("sell_out_of_stock") == "on"
 
-        update_product_shopify(product)
+        # 🖼️ IMAGE HANDLING
+        image = request.FILES.get("image")
+
+        if image:
+            product.image = image
+            product.save()
+
+            product.image_url = request.build_absolute_uri(product.image.url)
+            product.save()
+
+        # ✅ SAVE FIRST
         product.save()
+
+        # 🔥 SHOPIFY SYNC
+        from business.shopify_service import (
+            update_product_shopify,
+            sync_images_to_shopify
+        )
+
+        update_product_shopify(product)
+        sync_images_to_shopify(product)
 
         messages.success(request, f'"{product.title}" updated successfully.')
         return redirect("staff_products")

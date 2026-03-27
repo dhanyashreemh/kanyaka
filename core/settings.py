@@ -44,16 +44,16 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'business.middleware.APILoggingMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',   
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',  
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -192,3 +192,6 @@ LOGGING = {
 }
 
 WEBHOOK_LOG_RETENTION_DAYS = 7
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")

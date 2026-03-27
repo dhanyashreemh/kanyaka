@@ -10,7 +10,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-
+from products.views import staff_products
 from products.views import sync_shopify_products 
 
 urlpatterns = [
@@ -39,7 +39,12 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view()),   # refresh access token
     path('api/token/verify/', TokenVerifyView.as_view()),     # verify a token
     path("sync-shopify-products/", sync_shopify_products, name="sync_shopify_products"),
+    path('staff/products/', staff_products, name='staff_products'),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class Product(models.Model):
 
     shopify_product_id = models.CharField(max_length=255, unique=True)
@@ -34,7 +33,8 @@ class Product(models.Model):
     inventory_tracked  = models.BooleanField(default=True)
     sell_out_of_stock = models.BooleanField(default=False)
     charge_tax = models.BooleanField(default=True)
-
+    image = models.ImageField(upload_to="products/", null=True, blank=True)
+    image_url = models.URLField(blank=True, null=True)
     raw_data = models.JSONField(blank=True, null=True)
 
     def __str__(self):
@@ -63,3 +63,28 @@ class WebhookLog(models.Model):
 
     def __str__(self):
         return f"{self.topic} - {self.webhook_id}"
+    
+
+def save(self, *args, **kwargs):
+    super().save(*args, **kwargs)
+
+    if getattr(self, "_skip_shopify_sync", False):
+        return
+
+    if self.shopify_product_id:
+        from business.shopify_service import (
+            update_product_shopify,
+            sync_images_to_shopify
+        )
+
+        update_product_shopify(self)
+        sync_images_to_shopify(self)
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
+    shopify_image_id = models.CharField(max_length=255, blank=True, null=True)
+    image_url = models.URLField()
+    alt_text = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.product.title} Image"

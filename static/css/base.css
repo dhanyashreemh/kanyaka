@@ -586,3 +586,17 @@ tbody td {
   border-color: #c9a96e;
   background: #f7f0e3;
 }
+
+.product-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.search-input {
+  padding: 8px;
+  width: 250px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}

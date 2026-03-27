@@ -15,6 +15,42 @@ from products.services.metafields import (
 )
 from products.utils import safe_decimal
   
+def extract_image(data):
+    # single image
+    if data.get("image"):
+        return data["image"].get("src")
+
+    # multiple images fallback
+    images = data.get("images", [])
+    if images:
+        return images[0].get("src")
+
+    return None
+
+
+def sync_product_images(product, data):
+    from products.models import ProductImage
+
+    images = data.get("images", [])
+
+    if not images:
+        return
+
+    # clear old images
+    ProductImage.objects.filter(product=product).delete()
+
+    new_images = []
+
+    for img in images:
+        new_images.append(ProductImage(
+            product=product,
+            shopify_image_id=img.get("id"),
+            image_url=img.get("src"),
+            alt_text=img.get("alt")
+        ))
+
+    ProductImage.objects.bulk_create(new_images)
+
 @csrf_exempt
 def handle_shopify_webhook(request):
     # 🧹 cleanup old webhook logs
@@ -112,9 +148,11 @@ def handle_shopify_webhook(request):
                             "charge_tax":         variant.get("taxable", True),
 
                             # Raw backup
+                            "image_url": extract_image(data),
                             "raw_data": data,
                         }
                     )
+                    sync_product_images(product_obj, data)
                     print(f"✅ Synced variant {variant_id}")
 
                 except Exception as e:
@@ -137,3 +175,27 @@ def handle_shopify_webhook(request):
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         return HttpResponse(status=500)
+    
+
+def sync_product_images(product, data):
+    from products.models import ProductImage
+
+    images = data.get("images", [])
+
+    if not images:
+        return
+
+    # delete old images (optional but clean)
+    ProductImage.objects.filter(product=product).delete()
+
+    new_images = []
+
+    for img in images:
+        new_images.append(ProductImage(
+            product=product,
+            shopify_image_id=img.get("id"),
+            image_url=img.get("src"),
+            alt_text=img.get("alt")
+        ))
+
+    ProductImage.objects.bulk_create(new_images)

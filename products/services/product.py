@@ -251,6 +251,10 @@ def create_product_shopify(
 
 
 
+import requests
+from django.conf import settings
+
+
 def update_product_shopify(product):
     url = f"https://{settings.SHOPIFY_STORE}.myshopify.com/admin/api/2024-10/graphql.json"
 
@@ -270,49 +274,139 @@ def update_product_shopify(product):
     weight = float(product.weight or 0)
 
     if not weight:
-      print(f"❌ Missing weight → skipping {product.title}")
-      return
+        print(f"❌ Missing weight → skipping {product.title}")
+        return
 
-    title = str(product.title)
-
-    # 1️⃣ Title update
-    mutation = f"""
-    mutation {{
-      productUpdate(input: {{
-        id: "{product_id}",
-        title: "{title}"
-      }}) {{
-        userErrors {{ message }}
-      }}
-    }}
+    # -----------------------------
+    # 1️⃣ PRODUCT UPDATE (TITLE)
+    # -----------------------------
+    product_mutation = """
+    mutation updateProduct($input: ProductInput!) {
+      productUpdate(input: $input) {
+        product {
+          id
+          title
+        }
+        userErrors {
+          message
+        }
+      }
+    }
     """
-    print("TITLE:", requests.post(url, json={"query": mutation}, headers=headers).json())
 
-    # 2️⃣ Price + weight
-    variant_mutation = f"""
-    mutation {{
-      productVariantsBulkUpdate(
-        productId: "{product_id}",
-        variants: [{{
-            id: "{variant_id}",
-            price: "{price}",
-            inventoryItem: {{
-              measurement: {{
-                weight: {{
-                  value: {weight},
-                  unit: GRAMS
-                }}
-              }}
-            }}
-        }}]
-      ) {{
-        userErrors {{ message }}
-      }}
-    }}
+    product_variables = {
+        "input": {
+            "id": product_id,
+            "title": product.title
+        }
+    }
+
+    res1 = requests.post(
+        url,
+        json={"query": product_mutation, "variables": product_variables},
+        headers=headers
+    ).json()
+
+    print("🟡 PRODUCT UPDATE:", res1)
+
+    # -----------------------------
+    # 2️⃣ VARIANT UPDATE (PRICE + WEIGHT)
+    # -----------------------------
+    variant_mutation = """
+    mutation updateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+        userErrors {
+          message
+        }
+      }
+    }
     """
-    print("VARIANT:", requests.post(url, json={"query": variant_mutation}, headers=headers).json())
 
-    update_product_metafields(product)
+    variant_variables = {
+        "productId": product_id,
+        "variants": [{
+            "id": variant_id,
+            "price": str(price),
+            "inventoryItem": {
+                "measurement": {
+                    "weight": {
+                        "value": weight,
+                        "unit": "GRAMS"
+                    }
+                }
+            }
+        }]
+    }
+
+    res2 = requests.post(
+        url,
+        json={"query": variant_mutation, "variables": variant_variables},
+        headers=headers
+    ).json()
+
+    print("🟡 VARIANT UPDATE:", res2)
+
+    # -----------------------------
+    # 3️⃣ IMAGE UPDATE (OPTIONAL)
+    # -----------------------------
+    if product.image_url:
+        image_mutation = """
+        mutation addImage($productId: ID!, $media: [CreateMediaInput!]!) {
+          productCreateMedia(productId: $productId, media: $media) {
+            media {
+              ... on MediaImage {
+                image {
+                  url
+                }
+              }
+            }
+            mediaUserErrors {
+              message
+            }
+          }
+        }
+        """
+
+        image_variables = {
+            "productId": product_id,
+            "media": [{
+                "originalSource": product.image_url,
+                "mediaContentType": "IMAGE"
+            }]
+        }
+
+        res3 = requests.post(
+            url,
+            json={"query": image_mutation, "variables": image_variables},
+            headers=headers
+        ).json()
+
+        print("🟡 IMAGE UPDATE:", res3)
+
+    # -----------------------------
+    # 4️⃣ UPDATE DB FROM SHOPIFY RESPONSE
+    # -----------------------------
+    try:
+        updated_product = res1.get("data", {}).get("productUpdate", {}).get("product")
+
+        if updated_product:
+            product._skip_shopify_sync = True  # 🚫 prevent infinite loop
+
+            product.title = updated_product.get("title", product.title)
+            product.raw_data = updated_product
+
+            product.save()
+
+    except Exception as e:
+        print("❌ DB Sync Error:", e)
+
+    # -----------------------------
+    # 5️⃣ METAFIELDS UPDATE
+    # -----------------------------
+    try:
+        update_product_metafields(product)
+    except Exception as e:
+        print("❌ Metafield Error:", e)
 
 
 

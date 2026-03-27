@@ -12,5 +12,4 @@ urlpatterns = [
 
     # Staff resources
     path("staff/orders/", views.staff_orders, name="staff_orders"),
-    path("staff/products/", views.staff_products, name="staff_products"),
 ]
