@@ -75,7 +75,11 @@ def run_single_update(product):
 @receiver(post_save, sender=Product)
 def trigger_single_product_update(sender, instance, created, **kwargs):
 
-    # 🔥 PREVENT INFINITE LOOP
+    # 🔥 SKIP during Shopify sync (NEW FIX)
+    if getattr(instance, "_skip_shopify", False):
+        return
+
+    # 🔥 PREVENT INFINITE LOOP (already exists)
     if getattr(instance, "_updating_price", False):
         return
 

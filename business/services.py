@@ -113,7 +113,7 @@ def update_single_product(product):
 
     from .models import GoldRate
 
-    gold_rate = GoldRate.objects.latest("created_at")
+    gold_rate = GoldRate.objects.latest("updated_at")
 
     new_price = calculate_price(
         weight=product.weight,

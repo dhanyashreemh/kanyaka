@@ -4,9 +4,11 @@ from .metafields import get_shopify_metafields
 import requests
 from products.models import Product
 from products.utils import safe_decimal
-from django.shortcuts import redirect
 from decimal import Decimal
 import logging
+from django.db.models.signals import post_save
+from business.signals import trigger_single_product_update
+
 logger = logging.getLogger(__name__)
 
 def find_variant_by_sku(sku):
@@ -131,75 +133,85 @@ def sync_products(products):
 
     return results
 
+
 def sync_products_service():
-    url = f"https://{settings.SHOPIFY_STORE}.myshopify.com/admin/api/2024-10/products.json?limit=250"
-    headers = {"X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN}
 
-    while url:
-        response = requests.get(url, headers=headers)
-        data = response.json()
+    # 🔥 DISABLE PRODUCT SIGNAL (CRITICAL FIX)
+    post_save.disconnect(trigger_single_product_update, sender=Product)
 
-        print("PRODUCT COUNT:", len(data.get("products", [])))
+    try:
+        url = f"https://{settings.SHOPIFY_STORE}.myshopify.com/admin/api/2024-10/products.json?limit=250"
+        headers = {"X-Shopify-Access-Token": settings.SHOPIFY_ACCESS_TOKEN}
 
-        for product in data.get("products", []):
+        while url:
+            response = requests.get(url, headers=headers)
+            data = response.json()
 
-            product_gid = f"gid://shopify/Product/{product['id']}"
+            print("PRODUCT COUNT:", len(data.get("products", [])))
 
-            # Fetch metafields per product
-            metafields = get_shopify_metafields(product_gid)
+            for product in data.get("products", []):
 
-            weight        = safe_decimal(metafields.get("gold_weight"))
-            purity        = metafields.get("gold_purity")
-            stone_type    = metafields.get("stone_type")
-            cost_per_item = safe_decimal(metafields.get("making_charge"))
+                product_gid = f"gid://shopify/Product/{product['id']}"
 
-            for variant in product.get("variants", []):
-                Product.objects.update_or_create(
-                    shopify_variant_id=variant["id"],
-                    defaults={
-                        # IDs
-                        "shopify_product_id": product_gid,
+                # 🔥 Fetch metafields
+                metafields = get_shopify_metafields(product_gid)
 
-                        # Basic Info
-                        "title":       product.get("title"),
-                        "description": product.get("body_html"),
+                weight        = safe_decimal(metafields.get("gold_weight"))
+                purity        = metafields.get("gold_purity")
+                stone_type    = metafields.get("stone_type")
+                cost_per_item = safe_decimal(metafields.get("making_charge"))
 
-                        # Pricing
-                        "price":         safe_decimal(variant.get("price"), Decimal("0")),
-                        "compare_price": safe_decimal(variant.get("compare_at_price")),
+                for variant in product.get("variants", []):
 
-                        # Classification
-                        "collection": product.get("product_type") or "General",
-                        "tags":       product.get("tags"),
+                    Product.objects.update_or_create(
+                        shopify_variant_id=str(variant["id"]),   # 🔥 always string
+                        defaults={
+                            # IDs
+                            "shopify_product_id": product_gid,
 
-                        # Jewelry (from metafields)
-                        "weight":        weight,
-                        "purity":        purity,
-                        "stone_type":    stone_type,
-                        "cost_per_item": cost_per_item,
+                            # Basic Info
+                            "title":       product.get("title"),
+                            "description": product.get("body_html"),
 
-                        # ❌ jewelry_type, metal_type, occasion → Django master, never touch here
+                            # Pricing
+                            "price":         safe_decimal(variant.get("price"), Decimal("0")),
+                            "compare_price": safe_decimal(variant.get("compare_at_price")),
 
-                        # Inventory
-                        "sku":     variant.get("sku"),
-                        "barcode": variant.get("barcode"),
-                        "quantity": variant.get("inventory_quantity", 0),
+                            # Classification
+                            "collection": product.get("product_type") or "General",
+                            "tags":       product.get("tags"),
 
-                        "inventory_tracked": variant.get("inventory_management") == "shopify",
-                        "sell_out_of_stock": variant.get("inventory_policy") == "continue",
-                        "charge_tax":        variant.get("taxable", True),
+                            # Jewelry
+                            "weight":        weight,
+                            "purity":        purity,
+                            "stone_type":    stone_type,
+                            "cost_per_item": cost_per_item,
 
-                        # Raw backup
-                        "raw_data": product,
-                    }
-                )
-                logger.info(f"Synced: {product['title']}")
+                            # Inventory
+                            "sku":     variant.get("sku"),
+                            "barcode": variant.get("barcode"),
+                            "quantity": variant.get("inventory_quantity", 0),
 
-        link_header = response.headers.get("Link")
-        if link_header and 'rel="next"' in link_header:
-            url = link_header.split(";")[0].strip("<> ")
-        else:
-            url = None
+                            "inventory_tracked": variant.get("inventory_management") == "shopify",
+                            "sell_out_of_stock": variant.get("inventory_policy") == "continue",
+                            "charge_tax":        variant.get("taxable", True),
 
-    logger.info("Sync completed")
-    
+                            # Raw backup
+                            "raw_data": product,
+                        }
+                    )
+
+                    logger.info(f"✅ Synced: {product['title']}")
+
+            # 🔁 Pagination handling
+            link_header = response.headers.get("Link")
+            if link_header and 'rel="next"' in link_header:
+                url = link_header.split(";")[0].strip("<> ")
+            else:
+                url = None
+
+        logger.info("🎉 Sync completed successfully")
+
+    finally:
+        # 🔥 RE-ENABLE SIGNAL (VERY IMPORTANT)
+        post_save.connect(trigger_single_product_update, sender=Product)

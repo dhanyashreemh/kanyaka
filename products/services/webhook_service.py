@@ -112,47 +112,46 @@ def handle_shopify_webhook(request):
                     continue
 
                 try:
-                    Product.objects.update_or_create(
-                        shopify_variant_id=variant_id,
+                    obj, created = Product.objects.update_or_create(
+                        shopify_variant_id=str(variant_id),  
                         defaults={
                             # IDs
                             "shopify_product_id": product_gid,
 
                             # Basic Info
-                            "title":       data.get("title"),
+                            "title": data.get("title"),
                             "description": data.get("body_html"),
 
                             # Pricing
-                            "price":         safe_decimal(variant.get("price"), Decimal("0")),
+                            "price": safe_decimal(variant.get("price"), Decimal("0")),
                             "compare_price": safe_decimal(variant.get("compare_at_price")),
 
                             # Classification
                             "collection": data.get("product_type"),
-                            "tags":       data.get("tags"),
+                            "tags": data.get("tags"),
 
-                            # Jewelry (from metafields)
-                            "weight":        weight,
-                            "purity":        purity,
-                            "stone_type":    stone_type,
+                            # Jewelry
+                            "weight": weight,
+                            "purity": purity,
+                            "stone_type": stone_type,
                             "cost_per_item": cost_per_item,
 
-                            # ❌ jewelry_type, metal_type, occasion → Django master, never touch here
-
                             # Inventory
-                            "sku":      variant.get("sku"),
-                            "barcode":  variant.get("barcode"),
+                            "sku": variant.get("sku"),
+                            "barcode": variant.get("barcode"),
                             "quantity": variant.get("inventory_quantity") or 0,
 
-                            "inventory_tracked":  variant.get("inventory_management") == "shopify",
-                            "sell_out_of_stock":  variant.get("inventory_policy") == "continue",
-                            "charge_tax":         variant.get("taxable", True),
+                            "inventory_tracked": variant.get("inventory_management") == "shopify",
+                            "sell_out_of_stock": variant.get("inventory_policy") == "continue",
+                            "charge_tax": variant.get("taxable", True),
 
-                            # Raw backup
                             "image_url": extract_image(data),
                             "raw_data": data,
                         }
                     )
-                    sync_product_images(product_obj, data)
+
+                    sync_product_images(obj, data)
+
                     print(f"✅ Synced variant {variant_id}")
 
                 except Exception as e:
@@ -177,25 +176,3 @@ def handle_shopify_webhook(request):
         return HttpResponse(status=500)
     
 
-def sync_product_images(product, data):
-    from products.models import ProductImage
-
-    images = data.get("images", [])
-
-    if not images:
-        return
-
-    # delete old images (optional but clean)
-    ProductImage.objects.filter(product=product).delete()
-
-    new_images = []
-
-    for img in images:
-        new_images.append(ProductImage(
-            product=product,
-            shopify_image_id=img.get("id"),
-            image_url=img.get("src"),
-            alt_text=img.get("alt")
-        ))
-
-    ProductImage.objects.bulk_create(new_images)
