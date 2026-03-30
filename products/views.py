@@ -26,6 +26,7 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from products.services.shopify_sync import sync_products_service
 import logging
+from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from products.services.webhook_service import handle_shopify_webhook
 
@@ -391,7 +392,7 @@ def sync_shopify_products(request):
         return redirect("staff_products")
     
 
-
+@csrf_exempt
 def shopify_product_webhook(request):
     return handle_shopify_webhook(request)
 
