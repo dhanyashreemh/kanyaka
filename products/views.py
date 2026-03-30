@@ -29,6 +29,7 @@ import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from products.services.webhook_service import handle_shopify_webhook
+from business.shopify_service import sync_images_to_shopify
 
 logger = logging.getLogger(__name__)
 CACHE_TIMEOUT = 60 * 5
@@ -329,11 +330,6 @@ def edit_product(request, pk):
         # ✅ SAVE FIRST
         product.save()
 
-        # 🔥 SHOPIFY SYNC
-        from business.shopify_service import (
-            update_product_shopify,
-            sync_images_to_shopify
-        )
 
         update_product_shopify(product)
         sync_images_to_shopify(product)
