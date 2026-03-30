@@ -62,7 +62,7 @@ def handle_shopify_webhook(request):
     try:
         received_hmac = request.headers.get("X-Shopify-Hmac-Sha256")
         secret = settings.SHOPIFY_WEBHOOK_SECRET
-
+        print("SECRET USED:", secret) 
         if not received_hmac or not secret:
             return HttpResponse(status=401)
 
