@@ -40,6 +40,7 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view()),     # verify a token
     path("sync-shopify-products/", sync_shopify_products, name="sync_shopify_products"),
     path('staff/products/', staff_products, name='staff_products'),
+    path("webhooks/shopify/", include("products.urls")),
 ]
 
 if settings.DEBUG:

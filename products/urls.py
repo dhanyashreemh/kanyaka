@@ -18,9 +18,5 @@ urlpatterns = [
     path("products/sync/", views.sync_shopify_products, name="sync_products"),
 
     # 🔹 Webhooks (external)
-    path(
-        "webhooks/shopify/product-create/",
-        views.shopify_product_webhook,
-        name="shopify_product_webhook"
-    ),
+    path("product-create/", views.shopify_product_webhook),
 ]
