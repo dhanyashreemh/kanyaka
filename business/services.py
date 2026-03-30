@@ -42,6 +42,20 @@ def get_gold_rate():
     return data
 
 
+def create_gold_rate(data):
+    try:
+        return GoldRate.objects.create(
+            rate_24k=data["rate_24k"],
+            rate_22k=data["rate_22k"],
+            making_charge_per_gram=data["making"],
+            gst_percentage=data["gst"],
+            making_type=data["making_type"]
+        )
+    except Exception:
+        logger.error("GoldRate creation failed", exc_info=True)
+        raise 
+
+
 
 def process_product(product, rate_obj):
     try:
@@ -93,20 +107,7 @@ def update_all_products(rate_obj):
 
     logger.info("🎉 All products updated successfully")
 
-    logger.info("🎉 All products updated successfully")
-
-def create_gold_rate(data):
-    try:
-        return GoldRate.objects.create(
-            rate_24k=data["rate_24k"],
-            rate_22k=data["rate_22k"],
-            making_charge_per_gram=data["making"],
-            gst_percentage=data["gst"],
-            making_type=data["making_type"]
-        )
-    except Exception:
-        logger.error("GoldRate creation failed", exc_info=True)
-        raise  
+ 
 
 def update_single_product(product):
 
@@ -126,7 +127,6 @@ def update_single_product(product):
     if product.price == new_price:
         return
 
-    # 🔥 THIS LINE IS CRITICAL
     product._updating_price = True
 
     product.price = new_price
@@ -134,7 +134,7 @@ def update_single_product(product):
 
     if product.shopify_variant_id:
         update_product_price(product.shopify_variant_id, float(new_price))
-
+ 
     if product.shopify_product_id:
         update_product_metafields(product)
 

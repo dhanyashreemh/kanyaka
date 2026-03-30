@@ -2,6 +2,7 @@ import requests
 import os
 from django.core.cache import cache
 import logging
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ def update_product_price(variant_id, new_price):
     if not SHOP or not ACCESS_TOKEN:
         return {"success": False, "error": "Server misconfiguration"}
     
+    # gid://shopify/ProductVariant/12345 → 12345
     variant_id = str(variant_id).split("/")[-1]
     url = f"https://{SHOP}.myshopify.com/admin/api/2024-10/variants/{variant_id}.json"
     logger.info(f"SHOPIFY URL: {url}")
@@ -101,8 +103,6 @@ def get_shopify_products():
     return {"success": True, "data": result}
 
 def sync_images_to_shopify(product):
-    import requests
-    from django.conf import settings
 
     # 🔥 STEP 1: DELETE OLD IMAGES
     delete_all_shopify_images(product)
@@ -157,8 +157,6 @@ def sync_images_to_shopify(product):
     print("🟢 IMAGE SYNC:", res)
 
 def delete_all_shopify_images(product):
-    import requests
-    from django.conf import settings
 
     url = f"https://{settings.SHOPIFY_STORE}.myshopify.com/admin/api/2024-10/graphql.json"
 

@@ -78,10 +78,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'shopify_db_v0tr',
-        'USER': 'shopify_db_v0tr_user',
-        'PASSWORD': 'Vj8BriTak6bSaPmGtRVpX5Gb0RUY7FLu',
-        'HOST': 'dpg-d6g0sh9r0fns73ekc6eg-a.oregon-postgres.render.com',
+        'NAME': 'kanyaka',
+        'USER': 'kanyaka_user',
+        'PASSWORD': 'z0SgJMXoO7hzzRdRgOgmQAspvyeGI6Kt',
+        'HOST': 'dpg-d74vq3f5r7bs73d4ln70-a.oregon-postgres.render.com',
         'PORT': '5432',
     }
 }
