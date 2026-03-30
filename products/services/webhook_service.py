@@ -53,28 +53,36 @@ def sync_product_images(product, data):
 
 @csrf_exempt
 def handle_shopify_webhook(request):
-    # 🧹 cleanup old webhook logs
+
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
     cleanup_old_webhooks()
+
     try:
         received_hmac = request.headers.get("X-Shopify-Hmac-Sha256")
         secret = settings.SHOPIFY_WEBHOOK_SECRET
 
-        calculated_hmac = base64.b64encode(
-            hmac.new(
-                secret.encode("utf-8"),
-                request.body,
-                hashlib.sha256
-            ).digest()
-        ).decode()
+        if not received_hmac or not secret:
+            return HttpResponse(status=401)
 
-        if not received_hmac or not hmac.compare_digest(received_hmac, calculated_hmac):
-            print("❌ HMAC verification failed")
+        digest = hmac.new(
+            secret.encode("utf-8"),
+            request.body,
+            hashlib.sha256
+        ).digest()
+
+        calculated_hmac = base64.b64encode(digest).decode()
+
+        if not hmac.compare_digest(str(received_hmac), str(calculated_hmac)):
             return HttpResponse(status=401)
 
         print("✅ PRODUCT WEBHOOK VERIFIED")
 
-
         webhook_id = request.headers.get("X-Shopify-Webhook-Id")
+
+        if not webhook_id:
+            return HttpResponse(status=400)
 
         if WebhookLog.objects.filter(webhook_id=webhook_id).exists():
             print("⚠️ Duplicate webhook skipped")
