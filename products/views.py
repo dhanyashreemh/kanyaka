@@ -393,21 +393,7 @@ def sync_shopify_products(request):
 
 
 def shopify_product_webhook(request):
-    try:
-        data = handle_shopify_webhook(request)
-
-        return JsonResponse({
-            "status": "success",
-            "message": "Webhook processed",
-            "data": data
-        })
-
-    except Exception as e:
-        logger.error("Webhook failed", exc_info=True)
-        return JsonResponse({
-            "status": "error",
-            "error": str(e)
-        }, status=500)
+    return handle_shopify_webhook(request)
 
 
 
